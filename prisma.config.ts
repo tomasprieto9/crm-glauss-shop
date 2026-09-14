@@ -1,8 +1,10 @@
 import 'dotenv/config'
-import { defineConfig, env } from 'prisma/config'
+import { defineConfig } from 'prisma/config'
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: { path: 'prisma/migrations' },
-  datasource: { url: env('POSTGRES_PRISMA_URL') },
+  datasource: {
+    url: process.env.POSTGRES_PRISMA_URL ?? 'postgresql://placeholder:placeholder@localhost:5432/placeholder',
+  },
 })
