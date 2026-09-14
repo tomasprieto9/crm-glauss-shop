@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Glauss Shop — Visão geral',
+  description: 'Gestão simples e inteligente para o seu pequeno negócio.',
   generator: 'v0.app',
   icons: {
     icon: [
