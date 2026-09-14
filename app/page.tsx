@@ -1,91 +1,47 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  CircleHelp,
-  FileText,
-  LayoutDashboard,
-  MoreHorizontal,
-  Package,
-  Plus,
-  Search,
-  Settings,
-  ShoppingBag,
-  Sparkles,
-  Tag,
-  TrendingUp,
-  Users,
-  WalletCards,
-  Zap,
-} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Package, Plus, Search, ShoppingBag, Users, WalletCards, X } from 'lucide-react'
 
-const navItems = [
-  { label: 'Visão geral', icon: LayoutDashboard },
-  { label: 'Clientes', icon: Users },
-  { label: 'Vendas', icon: ShoppingBag },
-  { label: 'Produtos', icon: Package },
-  { label: 'Financeiro', icon: WalletCards },
-  { label: 'Relatórios', icon: FileText },
-]
+type Payment = 'Efectivo' | 'Transferencia' | 'Tarjeta'
+type Sale = { id: number; date: string; client: string; phone: string; products: string[]; payment: Payment; total: number }
 
-const sales = [42, 58, 51, 67, 62, 76, 72, 84, 77, 92, 87, 96]
-const customers = [
-  { name: 'Marina Costa', initials: 'MC', tone: 'lavender', order: 'Pedido #1048', value: 'R$ 289,90', status: 'Concluído' },
-  { name: 'Rafael Mendes', initials: 'RM', tone: 'peach', order: 'Pedido #1047', value: 'R$ 149,00', status: 'Enviado' },
-  { name: 'Bianca Nunes', initials: 'BN', tone: 'mint', order: 'Pedido #1046', value: 'R$ 412,50', status: 'Concluído' },
-  { name: 'Lucas Almeida', initials: 'LA', tone: 'blue', order: 'Pedido #1045', value: 'R$ 89,90', status: 'Processando' },
+const sales: Sale[] = [
+  { id: 42, date: '14/05/2024', client: 'Marina Costa', phone: '+54 9 11 5555-0182', products: ['Elfbar 5000', 'Pods Vuse'], payment: 'Transferencia', total: 89580 },
+  { id: 41, date: '11/05/2024', client: 'Rafael Mendes', phone: '+54 9 11 5555-1430', products: ['Blue Razz Ice'], payment: 'Efectivo', total: 32900 },
+  { id: 40, date: '08/05/2024', client: 'Bianca Nunes', phone: '+54 9 11 5555-2291', products: ['Elfbar 5000', 'Lemon Mint'], payment: 'Tarjeta', total: 67400 },
+  { id: 39, date: '30/04/2024', client: 'Lucas Almeida', phone: '+54 9 11 5555-3902', products: ['Vuse Go 5000'], payment: 'Transferencia', total: 28500 },
+  { id: 38, date: '25/04/2024', client: 'Sofía Romero', phone: '+54 9 11 5555-4450', products: ['Grape Ice', 'Strawberry Kiwi'], payment: 'Efectivo', total: 51200 },
+  { id: 37, date: '19/04/2024', client: 'Tomás Herrera', phone: '+54 9 11 5555-5599', products: ['Elfbar 5000'], payment: 'Tarjeta', total: 39800 },
+  { id: 36, date: '12/04/2024', client: 'Carla Benítez', phone: '+54 9 11 5555-6133', products: ['Blue Razz Ice', 'Pods Vuse'], payment: 'Transferencia', total: 64700 },
+  { id: 35, date: '03/04/2024', client: 'Nicolás Suárez', phone: '+54 9 11 5555-7021', products: ['Lemon Mint'], payment: 'Efectivo', total: 24900 },
+  { id: 34, date: '27/03/2024', client: 'Valentina Díaz', phone: '+54 9 11 5555-8110', products: ['Vuse Go 5000', 'Grape Ice'], payment: 'Tarjeta', total: 59800 },
+  { id: 33, date: '18/03/2024', client: 'Martín Acosta', phone: '+54 9 11 5555-9345', products: ['Strawberry Kiwi'], payment: 'Transferencia', total: 27900 },
+  { id: 32, date: '09/03/2024', client: 'Julia Paz', phone: '+54 9 11 5555-1044', products: ['Elfbar 5000'], payment: 'Efectivo', total: 39800 },
+  { id: 31, date: '26/02/2024', client: 'Franco Molina', phone: '+54 9 11 5555-1188', products: ['Pods Vuse', 'Lemon Mint'], payment: 'Tarjeta', total: 47600 },
+  { id: 30, date: '14/02/2024', client: 'Agustina Vega', phone: '+54 9 11 5555-2234', products: ['Blue Razz Ice'], payment: 'Transferencia', total: 32900 },
+  { id: 29, date: '02/02/2024', client: 'Diego Torres', phone: '+54 9 11 5555-3319', products: ['Grape Ice'], payment: 'Efectivo', total: 29900 },
+  { id: 28, date: '25/01/2024', client: 'Camila Ríos', phone: '+54 9 11 5555-4491', products: ['Vuse Go 5000'], payment: 'Tarjeta', total: 28500 },
 ]
+const products = [{ name: 'Elfbar 5000', brand: 'Elfbar', price: 39800 }, { name: 'Blue Razz Ice', brand: 'Elfbar', price: 32900 }, { name: 'Lemon Mint', brand: 'Vuse', price: 24900 }, { name: 'Pods Vuse', brand: 'Vuse', price: 27900 }]
+const money = (n: number) => `$ ${n.toLocaleString('es-AR')}`
 
 export default function Page() {
-  const [active, setActive] = useState('Visão geral')
-  const [period, setPeriod] = useState('Últimos 30 dias')
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [showNotification, setShowNotification] = useState(false)
+  const [view, setView] = useState<'Ventas' | 'Detalle'>('Ventas')
+  const [query, setQuery] = useState('')
+  const [payment, setPayment] = useState('Todos')
+  const [showNew, setShowNew] = useState(false)
+  const [selected, setSelected] = useState<Sale | null>(null)
+  const [menu, setMenu] = useState<number | null>(null)
+  const filtered = useMemo(() => sales.filter(s => s.client.toLowerCase().includes(query.toLowerCase()) && (payment === 'Todos' || s.payment === payment)), [query, payment])
 
-  return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">g</span><span>glauss</span><span className="brand-dot">.</span></div>
-        <div className="workspace"><div className="workspace-avatar">GS</div><div><strong>Glauss Shop</strong><span>Minha loja</span></div><ChevronDown size={15} /></div>
-        <nav className="nav-list" aria-label="Navegação principal">
-          <span className="nav-label">MENU PRINCIPAL</span>
-          {navItems.map((item) => { const Icon = item.icon; return <button key={item.label} onClick={() => setActive(item.label)} className={`nav-item ${active === item.label ? 'active' : ''}`}><Icon size={18} /><span>{item.label}</span>{item.label === 'Clientes' && <span className="nav-count">12</span>}</button> })}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="upgrade-card"><div className="upgrade-icon"><Sparkles size={16} /></div><strong>Desbloqueie todo o potencial</strong><p>Tenha relatórios avançados e muito mais.</p><button>Conhecer plano Pro <ArrowUpRight size={13} /></button></div>
-          <button className="nav-item"><CircleHelp size={18} /><span>Central de ajuda</span></button>
-          <button className="nav-item"><Settings size={18} /><span>Configurações</span></button>
-          <div className="profile"><div className="profile-avatar">JS</div><div><strong>João Silva</strong><span>Administrador</span></div><MoreHorizontal size={17} /></div>
-        </div>
-      </aside>
-
-      <section className="main-content">
-        <header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>{active}</strong></div><div className="top-actions"><button className="icon-button" aria-label="Pesquisar" onClick={() => setSearchOpen(!searchOpen)}><Search size={19} /></button><button className="icon-button notification-button" aria-label="Notificações" onClick={() => setShowNotification(!showNotification)}><Bell size={19} /><i /></button><button className="quick-button"><Plus size={17} /> Nova venda</button></div>{searchOpen && <div className="search-popover"><Search size={16} /><input autoFocus placeholder="Buscar clientes, pedidos..." /></div>}{showNotification && <div className="notification-popover"><strong>Notificações</strong><p>Você tem 3 novos pedidos para revisar.</p><button>Ver pedidos</button></div>}</header>
-        <div className="content-wrap">
-          <div className="page-heading"><div><p className="eyebrow">TERÇA-FEIRA, 14 DE MAIO DE 2024</p><h1>Bom dia, João <span>✦</span></h1><p className="heading-subtitle">Aqui está o que está acontecendo na sua loja hoje.</p></div><button className="date-button"><CalendarDays size={16} /> {period} <ChevronDown size={15} /></button></div>
-          <div className="metrics-grid">
-            <MetricCard title="Vendas totais" value="R$ 24.680,00" change="18,4%" up icon={<TrendingUp size={18} />} accent="purple" />
-            <MetricCard title="Pedidos" value="284" change="12,8%" up icon={<ShoppingBag size={18} />} accent="blue" />
-            <MetricCard title="Ticket médio" value="R$ 86,90" change="3,2%" up icon={<Tag size={18} />} accent="peach" />
-            <MetricCard title="Clientes ativos" value="1.248" change="5,7%" up icon={<Users size={18} />} accent="mint" />
-          </div>
-          <div className="dashboard-grid">
-            <section className="card sales-card"><div className="card-head"><div><h2>Visão de vendas</h2><p>Acompanhe o crescimento da sua loja</p></div><div className="legend"><span><i className="legend-dot purple-dot" />Vendas</span><button onClick={() => setPeriod(period === 'Últimos 30 dias' ? 'Últimos 7 dias' : 'Últimos 30 dias')}>{period}<ChevronDown size={14} /></button></div></div><div className="chart-summary"><strong>R$ 24.680,00</strong><span className="positive"><ArrowUpRight size={14} /> 18,4%</span><small>vs. período anterior</small></div><div className="chart"><div className="y-axis"><span>R$ 3k</span><span>R$ 2k</span><span>R$ 1k</span><span>R$ 0</span></div><div className="chart-area"><div className="grid-lines"><i /><i /><i /><i /></div><svg viewBox="0 0 620 190" preserveAspectRatio="none" aria-label="Gráfico de vendas"><defs><linearGradient id="salesFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#7567e8" stopOpacity=".22" /><stop offset="1" stopColor="#7567e8" stopOpacity="0" /></linearGradient></defs><path d="M0 157 C30 145, 36 150, 58 130 S94 143, 114 114 S148 127, 170 100 S202 119, 224 86 S257 110, 280 83 S314 99, 336 65 S369 81, 393 54 S427 74, 451 47 S481 61, 505 32 S542 50, 566 22 S598 33, 620 8 L620 190 L0 190 Z" fill="url(#salesFill)" /><path d="M0 157 C30 145, 36 150, 58 130 S94 143, 114 114 S148 127, 170 100 S202 119, 224 86 S257 110, 280 83 S314 99, 336 65 S369 81, 393 54 S427 74, 451 47 S481 61, 505 32 S542 50, 566 22 S598 33, 620 8" fill="none" stroke="#7567e8" strokeWidth="3" strokeLinecap="round" /></svg><div className="x-axis"><span>15 abr</span><span>20 abr</span><span>25 abr</span><span>30 abr</span><span>05 mai</span><span>10 mai</span><span>14 mai</span></div></div></div></section>
-            <section className="card reactivation-card"><div className="card-head"><div><h2>Reative seus clientes</h2><p>Oportunidades para hoje</p></div><Zap size={18} className="zap-icon" /></div><div className="reactivation-number">86</div><p className="reactivation-copy">clientes não compram há mais de 60 dias.</p><div className="progress-bar"><span /></div><div className="reactivation-foot"><span>Potencial estimado</span><strong>R$ 8.420,00</strong></div><button className="outline-button" onClick={() => alert('Campanha criada!')}>Criar campanha <ArrowUpRight size={15} /></button></section>
-          </div>
-          <div className="bottom-grid"><section className="card orders-card"><div className="card-head"><div><h2>Pedidos recentes</h2><p>Veja as últimas movimentações</p></div><button className="text-button" onClick={() => setActive('Vendas')}>Ver todos <ArrowUpRight size={14} /></button></div><div className="orders-table"><div className="table-row table-heading"><span>CLIENTE</span><span>PEDIDO</span><span>VALOR</span><span>STATUS</span></div>{customers.map((customer) => <div className="table-row" key={customer.name}><div className="customer-cell"><span className={`customer-avatar ${customer.tone}`}>{customer.initials}</span><strong>{customer.name}</strong></div><span className="muted">{customer.order}</span><strong>{customer.value}</strong><span className={`status ${customer.status.toLowerCase()}`}>{customer.status}</span></div>)}</div></section><section className="card quick-actions"><div className="card-head"><div><h2>Ações rápidas</h2><p>Atalhos para o dia a dia</p></div></div><div className="action-list"><button onClick={() => setActive('Clientes')}><span className="action-icon lavender-bg"><Users size={17} /></span><span><strong>Adicionar cliente</strong><small>Cadastre um novo contato</small></span><ArrowUpRight size={15} /></button><button onClick={() => setActive('Produtos')}><span className="action-icon peach-bg"><Package size={17} /></span><span><strong>Cadastrar produto</strong><small>Adicione itens ao catálogo</small></span><ArrowUpRight size={15} /></button><button onClick={() => setActive('Relatórios')}><span className="action-icon mint-bg"><FileText size={17} /></span><span><strong>Gerar relatório</strong><small>Exporte seus resultados</small></span><ArrowUpRight size={15} /></button></div></section></div>
-          <footer>glauss <span>feito para pequenos negócios</span><span className="footer-right">Ajuda · Termos · Privacidade</span></footer>
-        </div>
-      </section>
-    </main>
-  )
+  if (view === 'Detalle' && selected) return <Detail sale={selected} onBack={() => setView('Ventas')} />
+  return <main className="app-shell"><Sidebar active="Ventas" /><section className="main-content"><header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>Ventas</strong></div><div className="top-actions"><button className="icon-button" aria-label="Buscar"><Search /></button><button className="icon-button" aria-label="Notificaciones">●</button><button className="quick-button" onClick={() => setShowNew(true)}><Plus /> Nueva venta</button></div></header><div className="content-wrap sales-page"><div className="page-heading sales-heading"><div><p className="eyebrow">OPERACIONES</p><h1>Ventas</h1><p className="heading-subtitle">Registrá y consultá todas las ventas de tu tienda.</p></div><button className="quick-button" onClick={() => setShowNew(true)}><Plus /> Nueva venta</button></div><div className="sales-filters"><div className="filter-control"><CalendarDays /><span>01/01/2024 — 14/05/2024</span><ChevronDown /></div><div className="filter-control"><WalletCards /><select value={payment} onChange={e => setPayment(e.target.value)}><option>Todos</option><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select><ChevronDown /></div><label className="search-control"><Search /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por cliente..." /></label></div><div className="card sales-table-card"><div className="sales-table-top"><div><h2>Historial de ventas</h2><p>{filtered.length} ventas encontradas</p></div><span className="table-total">Total del período <strong>{money(filtered.reduce((a, s) => a + s.total, 0))}</strong></span></div><div className="sales-table-wrap"><table><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Método de pago</th><th>Total</th><th /></tr></thead><tbody>{filtered.map(s => <tr key={s.id}><td className="sale-number">{String(s.id).padStart(4, '0')}</td><td>{s.date}</td><td><div className="client-table"><span>{s.client.split(' ').map(x => x[0]).join('')}</span><strong>{s.client}</strong></div></td><td><span className="product-summary">{s.products[0]}{s.products.length > 1 ? ` + ${s.products.length - 1} más` : ''}</span></td><td><PaymentPill payment={s.payment} /></td><td><strong>{money(s.total)}</strong></td><td className="action-cell"><button aria-label="Acciones" onClick={() => setMenu(menu === s.id ? null : s.id)}><MoreHorizontal /></button>{menu === s.id && <div className="row-menu"><button onClick={() => { setSelected(s); setView('Detalle'); setMenu(null) }}>Ver detalle</button><button onClick={() => setMenu(null)}>Eliminar</button></div>}</td></tr>)}</tbody></table></div><div className="pagination"><span>Mostrando 1-15 de 15 ventas</span><div><button disabled><ChevronLeft /></button><button className="current-page">1</button><button disabled><ChevronRight /></button></div></div></div></div></section>{showNew && <NewSale onClose={() => setShowNew(false)} />}</main>
 }
 
-function MetricCard({ title, value, change, up, icon, accent }: { title: string; value: string; change: string; up: boolean; icon: React.ReactNode; accent: string }) {
-  return <div className="metric-card"><div className={`metric-icon ${accent}`}>{icon}</div><div className="metric-title">{title}</div><div className="metric-value">{value}</div><div className={`metric-change ${up ? 'positive' : 'negative'}`}>{up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}{change}<span>vs. período anterior</span></div></div>
-}
+function Sidebar({ active }: { active: string }) { return <aside className="sidebar"><div className="brand"><span className="brand-mark">g</span><span>glauss</span><span className="brand-dot">.</span></div><div className="workspace"><div className="workspace-avatar">GS</div><div><strong>Glauss Shop</strong><span>Mi tienda</span></div><ChevronDown /></div><nav className="nav-list"><span className="nav-label">MENU PRINCIPAL</span>{[['Resumen', '◈'], ['Ventas', '▣'], ['Clientes', '♙'], ['Productos y stock', '□'], ['Finanzas', '$'], ['Reportes', '▤']].map(([label, icon]) => <button key={label} className={`nav-item ${label === active ? 'active' : ''}`}><span className="nav-glyph">{icon}</span>{label}{label === 'Clientes' && <span className="nav-count">12</span>}</button>)}</nav><div className="sidebar-bottom"><div className="upgrade-card"><div className="upgrade-icon">✦</div><strong>Desbloqueá todo el potencial</strong><p>Tené reportes avanzados y mucho más.</p><button>Conocer plan Pro →</button></div><button className="nav-item">? <span>Central de ayuda</span></button><button className="nav-item">⚙ <span>Configuración</span></button><div className="profile"><div className="profile-avatar">JS</div><div><strong>João Silva</strong><span>Administrador</span></div><MoreHorizontal /></div></div></aside> }
+function PaymentPill({ payment }: { payment: Payment }) { return <span className={`payment-pill ${payment.toLowerCase()}`}>{payment}</span> }
+
+function NewSale({ onClose }: { onClose: () => void }) { const [client, setClient] = useState(''); const [items, setItems] = useState([{ ...products[0], qty: 1 }]); const [method, setMethod] = useState<Payment>('Efectivo'); const total = items.reduce((a, p) => a + p.price * p.qty, 0); return <div className="modal-backdrop"><section className="sale-modal" role="dialog" aria-modal="true"><header><div><p className="eyebrow">NUEVA OPERACIÓN</p><h2>Nueva venta</h2></div><button className="close-button" onClick={onClose}><X /></button></header><div className="modal-body"><label className="field"><span>Cliente</span><div className="field-input"><Users /><input value={client} onChange={e => setClient(e.target.value)} placeholder="Buscar cliente existente..." /><ChevronDown /></div><button className="create-link">+ Crear cliente nuevo</button></label><div className="field"><span>Productos</span><div className="field-input"><Search /><input placeholder="Buscar producto para agregar..." /></div></div><div className="sale-items">{items.map((p, i) => <div className="sale-item" key={p.name}><div className="item-icon"><Package /></div><div className="item-info"><strong>{p.name}</strong><small>{p.brand} · {money(p.price)}</small></div><div className="qty"><button onClick={() => setItems(items.map((x, j) => j === i ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}>−</button><strong>{p.qty}</strong><button onClick={() => setItems(items.map((x, j) => j === i ? { ...x, qty: x.qty + 1 } : x))}>+</button></div><strong>{money(p.price * p.qty)}</strong><button className="remove-item" onClick={() => setItems(items.filter((_, j) => j !== i))}><X /></button></div>)}</div><button className="add-product" onClick={() => setItems([...items, { ...products[1], qty: 1 }])}><Plus /> Agregar otro producto</button><div className="modal-fields"><label className="field"><span>Método de pago</span><select value={method} onChange={e => setMethod(e.target.value as Payment)}><option>Efectivo</option><option>Transferencia</option><option>Tarjeta</option></select></label><label className="field"><span>Fecha</span><input type="date" defaultValue="2024-05-14" /></label></div></div><footer><button className="cancel-button" onClick={onClose}>Cancelar</button><div className="modal-total"><span>Total de la venta</span><strong>{money(total)}</strong></div><button className="quick-button" onClick={onClose}>Registrar venta</button></footer></section></div> }
+
+function Detail({ sale, onBack }: { sale: Sale; onBack: () => void }) { return <main className="app-shell"><Sidebar active="Ventas" /><section className="main-content"><header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>Detalle de venta</strong></div></header><div className="content-wrap detail-page"><button className="back-link" onClick={onBack}><ArrowLeft /> Volver a ventas</button><div className="detail-heading"><div><p className="eyebrow">DETALLE DE OPERACIÓN</p><h1>Venta N° {String(sale.id).padStart(4, '0')}</h1><p className="heading-subtitle">Registrada el {sale.date}</p></div><PaymentPill payment={sale.payment} /></div><div className="card customer-detail"><div className="big-avatar">{sale.client.split(' ').map(x => x[0]).join('')}</div><div><p className="eyebrow">CLIENTE</p><h2>{sale.client}</h2><p>{sale.phone}</p></div><a className="whatsapp-button" href={`https://wa.me/${sale.phone.replace(/\D/g, '')}`} target="_blank">WhatsApp</a></div><div className="card detail-items"><h2>Productos de la venta</h2><table><thead><tr><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Precio unitario</th><th>Subtotal</th></tr></thead><tbody>{sale.products.map((p, i) => <tr key={p}><td><strong>{p}</strong></td><td>Elfbar</td><td>1</td><td>{money(i ? 27900 : sale.total - (sale.products.length - 1) * 27900)}</td><td><strong>{money(i ? 27900 : sale.total - (sale.products.length - 1) * 27900)}</strong></td></tr>)}</tbody></table><div className="detail-total"><span>Total</span><strong>{money(sale.total)}</strong></div></div></div></section></main> }
