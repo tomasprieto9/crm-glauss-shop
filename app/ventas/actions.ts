@@ -15,9 +15,9 @@ export async function registrarVenta(venta: NuevaVenta) {
   const items = []
   for (const item of venta.items) {
     const cantidad = Number(item.cantidad)
-    if (typeof item.producto_id !== 'string' || !item.producto_id) return 'Elegí la marca y el producto en cada línea.'
+    if (typeof item.sabor_id !== 'string' || !item.sabor_id) return 'Elegí marca, producto y sabor en cada línea.'
     if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 9999) return 'Revisá las cantidades.'
-    items.push({ producto_id: item.producto_id, cantidad })
+    items.push({ sabor_id: item.sabor_id, cantidad })
   }
 
   let total: number | null = null
@@ -48,6 +48,7 @@ export async function registrarVenta(venta: NuevaVenta) {
     p_items: items,
   })
   if (error?.code === '23505') return 'Ya hay un cliente con ese teléfono: buscalo por nombre o teléfono.'
+  if (error?.code === 'P0001') return error.message // mensajes propios de registrar_venta, en español
   if (error) return 'No se pudo registrar la venta. Probá de nuevo.'
   revalidatePath('/')
   return null

@@ -1,6 +1,6 @@
 import CrmApp from '@/components/crm-app'
 import type { Cliente } from '@/lib/clientes'
-import type { Producto } from '@/lib/productos'
+import type { Compra, Configuracion, Producto, Sabor } from '@/lib/productos'
 import { createClient } from '@/lib/supabase/server'
 import type { Venta } from '@/lib/ventas'
 
@@ -23,22 +23,47 @@ async function cargarClientes(supabase: Supabase) {
 async function cargarVentas(supabase: Supabase) {
   const { data, error } = await supabase
     .from('ventas')
-    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, created_at, clientes(nombre), venta_items(id, producto_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, productos(marca, nombre, categoria))')
+    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, created_at, clientes(nombre), venta_items(id, producto_id, sabor_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, productos(marca, nombre))')
     .order('numero', { ascending: false })
     .limit(FILAS_POR_CONSULTA)
   if (error) throw new Error(`No se pudieron cargar las ventas: ${error.message}`)
   return data as unknown as Venta[]
 }
 
+// Productos con sus sabores y el stock de cada uno (vista sabores_con_stock).
 async function cargarProductos(supabase: Supabase) {
-  const { data, error } = await supabase.from('productos').select('*').limit(FILAS_POR_CONSULTA)
-  if (error) throw new Error(`No se pudieron cargar los productos: ${error.message}`)
-  return (data as Producto[]).sort((a, b) => a.marca.localeCompare(b.marca, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
+  const [productos, sabores] = await Promise.all([
+    supabase.from('productos').select('*').limit(FILAS_POR_CONSULTA),
+    supabase.from('sabores_con_stock').select('id, producto_id, nombre, activo, stock').limit(5000),
+  ])
+  if (productos.error) throw new Error(`No se pudieron cargar los productos: ${productos.error.message}`)
+  if (sabores.error) throw new Error(`No se pudieron cargar los sabores: ${sabores.error.message}`)
+  const porProducto = new Map<string, Sabor[]>()
+  for (const sabor of sabores.data as Sabor[]) porProducto.set(sabor.producto_id, [...(porProducto.get(sabor.producto_id) ?? []), sabor])
+  return (productos.data as Omit<Producto, 'sabores'>[])
+    .map(producto => ({ ...producto, sabores: (porProducto.get(producto.id) ?? []).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) }))
+    .sort((a, b) => a.marca.localeCompare(b.marca, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+async function cargarCompras(supabase: Supabase) {
+  const { data, error } = await supabase
+    .from('compras')
+    .select('id, numero, producto_id, fecha, costo_unitario_usd, notas, created_at, productos(marca, nombre), stock_movimientos(cantidad)')
+    .order('numero', { ascending: false })
+    .limit(200)
+  if (error) throw new Error(`No se pudieron cargar las compras: ${error.message}`)
+  return data as unknown as Compra[]
+}
+
+async function cargarConfiguracion(supabase: Supabase) {
+  const { data, error } = await supabase.from('configuracion').select('cotizacion_usd, actualizada_en').eq('id', 1).single()
+  if (error) throw new Error(`No se pudo cargar la configuración: ${error.message}`)
+  return data as Configuracion
 }
 
 export default async function Page() {
   const supabase = await createClient()
   const { data } = await supabase.auth.getClaims()
-  const [clientes, ventas, productos] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase)])
-  return <CrmApp email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} />
+  const [clientes, ventas, productos, compras, configuracion] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase)])
+  return <CrmApp email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} />
 }
