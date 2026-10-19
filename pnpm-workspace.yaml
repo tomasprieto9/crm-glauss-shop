@@ -3,7 +3,3 @@ pmOnFail: ignore
 minimumReleaseAgeExclude:
   - '@next/*'
   - next
-
-allowBuilds:
-  '@prisma/engines': true
-  prisma: true
