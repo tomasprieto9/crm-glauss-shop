@@ -71,8 +71,8 @@ export function calcularTotales(lineas: { producto: Producto; cantidad: number }
 
 // Importe con su moneda: las ventas en dólares se guardan en dólares, el resto en pesos.
 export function formatearImporte(valor: number, metodo: MetodoPago) {
-  const numero = valor.toLocaleString('es-AR', { maximumFractionDigits: 2 })
-  return metodo === 'dolares' ? `US$ ${numero}` : `$ ${numero}`
+  const numero = Math.abs(valor).toLocaleString('es-AR', { maximumFractionDigits: 2 })
+  return `${valor < 0 ? '−' : ''}${metodo === 'dolares' ? 'US$' : '$'} ${numero}`
 }
 
 // Fecha de hoy (aaaa-mm-dd) en hora de Argentina.

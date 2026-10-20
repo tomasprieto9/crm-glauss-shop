@@ -1,17 +1,19 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState, useTransition } from 'react'
+import { Fragment, createContext, useContext, useEffect, useMemo, useState, useTransition } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, Plus, Search, ShoppingBag, Users, X, ArrowLeft, Phone } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cerrarSesion } from '@/app/login/actions'
 import { actualizarCliente, crearCliente } from '@/app/clientes/actions'
 import { guardarCotizacion } from '@/app/configuracion/actions'
+import { borrarMovimiento, registrarArqueo, registrarMovimiento } from '@/app/finanzas/actions'
 import { guardarProducto, registrarCompra } from '@/app/productos/actions'
 import { registrarVenta } from '@/app/ventas/actions'
 import { ESTADOS_CAMPANA, SEGMENTOS, ZONAS, formatearFecha, type Cliente } from '@/lib/clientes'
+import { CATEGORIAS_EGRESO, TIPOS_MOVIMIENTO, calcularMes, saldoDe, type MovimientoCaja, type SaldoCaja } from '@/lib/finanzas'
 import { stockTotal, unidadesCompradas, type Compra, type Configuracion, type Producto } from '@/lib/productos'
-import { METODOS_PAGO, RECIBIO, calcularTotales, formatearImporte, hoyEnArgentina, precioSegunPago, type MetodoPago, type Venta } from '@/lib/ventas'
+import { METODOS_PAGO, RECIBIO, calcularTotales, formatearImporte, hoyEnArgentina, precioSegunPago, type MetodoPago, type Recibio, type Venta } from '@/lib/ventas'
 
 const UsuarioContext = createContext('')
 const ClientesContext = createContext<Cliente[]>([])
@@ -35,7 +37,7 @@ const initialClients: Client[] = [
   { id: 12, first: 'Franco', last: 'Molina', phone: '+54 9 221 555-1188', lastPurchase: '26/02/2024', purchases: 1, spent: 47600, status: 'A reactivar' },
 ]
 
-const money = (value: number) => `$ ${value.toLocaleString('es-AR')}`
+const money = (value: number) => `${value < 0 ? '−' : ''}$ ${Math.abs(value).toLocaleString('es-AR')}`
 const numero = (value: number) => value.toLocaleString('es-AR')
 // Primera letra o número de las dos primeras palabras que tengan alguno (muchos nombres son usuarios de Instagram).
 const iniciales = (nombre: string) => nombre.split(/\s+/).map(parte => parte.match(/[\p{L}\p{N}]/u)?.[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
@@ -46,11 +48,11 @@ const POR_PAGINA = 50
 type Filtros = { texto: string; segmento: string; zona: string; pagina: number }
 const FILTROS_INICIALES: Filtros = { texto: '', segmento: '', zona: '', pagina: 1 }
 
-export default function CrmApp({ email, clientes, ventas, productos, compras, configuracion }: { email: string; clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion }) {
-  return <UsuarioContext value={email}><ClientesContext value={clientes}><Vistas clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} /></ClientesContext></UsuarioContext>
+export default function CrmApp({ email, clientes, ventas, productos, compras, configuracion, movimientos, saldos }: { email: string; clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
+  return <UsuarioContext value={email}><ClientesContext value={clientes}><Vistas clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={movimientos} saldos={saldos} /></ClientesContext></UsuarioContext>
 }
 
-function Vistas({ clientes, ventas, productos, compras, configuracion }: { clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion }) {
+function Vistas({ clientes, ventas, productos, compras, configuracion, movimientos, saldos }: { clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
   const [view, setView] = useState<Vista>('dashboard')
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null)
   // Los filtros viven acá para que no se pierdan al entrar y salir de una ficha.
@@ -61,11 +63,11 @@ function Vistas({ clientes, ventas, productos, compras, configuracion }: { clien
   useEffect(() => { window.scrollTo(0, 0) }, [view, seleccionadoId])
 
   if (seleccionado) return <FichaCliente key={seleccionado.id} cliente={seleccionado} onBack={() => setSeleccionadoId(null)} onNavigate={navegar} />
-  if (view === 'dashboard') return <Dashboard ventas={ventas} clientes={clientes} onNavigate={navegar} />
+  if (view === 'dashboard') return <Dashboard ventas={ventas} movimientos={movimientos} clientes={clientes} onNavigate={navegar} />
   if (view === 'ventas') return <Sales ventas={ventas} clientes={clientes} productos={productos} onNavigate={navegar} />
   if (view === 'reactivacion') return <Reactivation clients={initialClients} onNavigate={navegar} />
   if (view === 'productos') return <Products productos={productos} compras={compras} cotizacion={configuracion.cotizacion_usd} onNavigate={navegar} />
-  if (view === 'finanzas') return <Finance onNavigate={navegar} />
+  if (view === 'finanzas') return <Finance ventas={ventas} movimientos={movimientos} saldos={saldos} compras={compras} cotizacion={configuracion.cotizacion_usd} onNavigate={navegar} />
   if (view === 'reportes') return <Reports onNavigate={navegar} />
   if (view === 'configuracion') return <Ajustes configuracion={configuracion} onNavigate={navegar} />
   return <Clientes clientes={clientes} filtros={filtros} onFiltros={setFiltros} onSelect={setSeleccionadoId} onNavigate={navegar} />
@@ -84,8 +86,9 @@ function colaReactivacion(clientes: Cliente[]) {
 }
 
 // Métricas del mes en curso (hora de Argentina). Las ventas en dólares se suman aparte de los pesos.
-function calcularResumen(ventas: Venta[]) {
+function calcularResumen(ventas: Venta[], movimientos: MovimientoCaja[]) {
   const mesActual = hoyEnArgentina().slice(0, 7)
+  const egresosDe = (mes: string) => movimientos.filter(movimiento => movimiento.tipo === 'egreso' && movimiento.medio !== 'dolares' && movimiento.fecha.startsWith(mes)).reduce((suma, movimiento) => suma + movimiento.monto, 0)
   const delMes = ventas.filter(venta => venta.fecha.startsWith(mesActual))
   const enPesos = delMes.filter(venta => venta.metodo_pago !== 'dolares')
   const ingresos = sumarTotales(enPesos)
@@ -114,14 +117,14 @@ function calcularResumen(ventas: Venta[]) {
   const meses = Array.from({ length: 6 }, (_, i) => {
     const fecha = new Date(anio, mes - 6 + i, 1)
     const clave = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
-    return { clave, etiqueta: MESES[fecha.getMonth()], ingresos: sumarTotales(ventas.filter(venta => venta.metodo_pago !== 'dolares' && venta.fecha.startsWith(clave))), egresos: 0 }
+    return { clave, etiqueta: MESES[fecha.getMonth()], ingresos: sumarTotales(ventas.filter(venta => venta.metodo_pago !== 'dolares' && venta.fecha.startsWith(clave))), egresos: egresosDe(clave) }
   })
 
   return {
     cantidad: delMes.length,
     ingresos,
     ingresosUsd,
-    egresos: 0, // todavía no hay egresos cargados (Finanzas)
+    egresos: egresosDe(mesActual),
     ticket: enPesos.length ? Math.round(ingresos / enPesos.length) : 0,
     clientesNuevos: [...primeraCompra.values()].filter(fecha => fecha.startsWith(mesActual)).length,
     top: [...porProducto.values()].sort((a, b) => b.unidades - a.unidades).slice(0, 5),
@@ -130,8 +133,8 @@ function calcularResumen(ventas: Venta[]) {
   }
 }
 
-function Dashboard({ ventas, clientes, onNavigate }: { ventas: Venta[]; clientes: Cliente[]; onNavigate: (view: Vista) => void }) {
-  const resumen = useMemo(() => calcularResumen(ventas), [ventas])
+function Dashboard({ ventas, movimientos, clientes, onNavigate }: { ventas: Venta[]; movimientos: MovimientoCaja[]; clientes: Cliente[]; onNavigate: (view: Vista) => void }) {
+  const resumen = useMemo(() => calcularResumen(ventas, movimientos), [ventas, movimientos])
   const cola = useMemo(() => colaReactivacion(clientes), [clientes])
   // Torta: las 4 marcas más vendidas del mes y el resto en "Otras".
   const ranking = [...resumen.porMarca.entries()].sort((a, b) => b[1] - a[1])
@@ -191,7 +194,93 @@ function Sales({ ventas, clientes, productos, onNavigate }: { ventas: Venta[]; c
   return <main className="app-shell"><Sidebar active="Ventas" onNavigate={onNavigate} /><section className="main-content"><header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>Ventas</strong></div></header><div className="content-wrap sales-page"><div className="page-heading"><div><p className="eyebrow">HISTORIAL COMERCIAL</p><h1>Ventas</h1><p className="heading-subtitle">Registrá y consultá las ventas de tu tienda.</p></div><button className="quick-button" onClick={() => setMostrarNueva(true)}><Plus /> Nueva venta</button></div>{ventas.length === 0 ? <div className="card empty-state">Todavía no hay ventas cargadas.</div> : <div className="card clients-table-card"><div className="sales-table-top"><div><h2>Historial de ventas</h2><p>{numero(ventas.length)} {ventas.length === 1 ? 'venta registrada' : 'ventas registradas'}</p></div></div><div className="sales-table-wrap"><table className="clients-table sales-table"><thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Productos y precio de venta</th><th>Pago</th><th>Recibió</th><th>Total</th></tr></thead><tbody>{ventas.map(venta => <tr key={venta.id}><td data-label="N°"><strong>#{venta.numero}</strong></td><td data-label="Fecha">{formatearFecha(venta.fecha)}</td><td data-label="Cliente"><strong>{venta.clientes?.nombre ?? '—'}</strong></td><td data-label="Productos y precio de venta"><div className="venta-items-celda">{venta.venta_items.map(item => <span key={item.id}>{item.cantidad} × {item.descripcion} · <b>{formatearImporte(item.precio_unitario, venta.metodo_pago)} c/u</b>{item.precio_lista !== null && item.precio_unitario !== item.precio_lista && <s title="Precio de lista">{formatearImporte(item.precio_lista, venta.metodo_pago)}</s>}</span>)}</div></td><td data-label="Pago"><span className={`payment-pill ${venta.metodo_pago}`}>{METODOS_PAGO[venta.metodo_pago]}</span></td><td data-label="Recibió">{RECIBIO[venta.recibio]}</td><td data-label="Total"><strong>{formatearImporte(venta.total, venta.metodo_pago)}</strong>{venta.total_lista !== null && venta.total !== venta.total_lista && <small className="venta-lista">lista {formatearImporte(venta.total_lista, venta.metodo_pago)}</small>}</td></tr>)}</tbody></table></div></div>}</div></section>{mostrarNueva && <NuevaVentaModal clientes={clientes} productos={productos} onClose={() => setMostrarNueva(false)} onIrAProductos={() => { setMostrarNueva(false); onNavigate('productos') }} />}</main>
 }
 
-function Finance({ onNavigate }: { onNavigate: (view: Vista) => void }) { return <SeccionVacia active="Finanzas" breadcrumb="Finanzas" eyebrow="CONTROL FINANCIERO" title="Finanzas" subtitle="Seguí tus ingresos, egresos y balance mes a mes." mensaje="Todavía no hay movimientos cargados." onNavigate={onNavigate} /> }
+const MEDIOS_CAJA: MetodoPago[] = ['efectivo', 'transferencia', 'dolares']
+const conSigno = (valor: number, medio: MetodoPago) => `${valor < 0 ? '−' : '+'}${formatearImporte(Math.abs(valor), medio)}`
+type FilaMovimiento = { clave: string; fecha: string; orden: string; grupo: 'ventas' | 'egresos' | 'otros'; tipo: string; detalle: string; quien: string; medio: MetodoPago; monto: number | null; texto?: string; movimientoId?: string }
+
+function filasDeMovimientos(ventas: Venta[], movimientos: MovimientoCaja[]): FilaMovimiento[] {
+  const filas: FilaMovimiento[] = ventas.map(venta => ({ clave: `v-${venta.id}`, fecha: venta.fecha, orden: venta.created_at, grupo: 'ventas', tipo: 'Venta', detalle: `Venta #${venta.numero}${venta.clientes ? ` · ${venta.clientes.nombre}` : ''}`, quien: RECIBIO[venta.recibio], medio: venta.metodo_pago, monto: venta.total }))
+  for (const movimiento of movimientos) {
+    const base = { clave: `m-${movimiento.id}`, fecha: movimiento.fecha, orden: movimiento.created_at, tipo: TIPOS_MOVIMIENTO[movimiento.tipo], quien: RECIBIO[movimiento.persona], medio: movimiento.medio, movimientoId: movimiento.id }
+    const nota = movimiento.descripcion ? ` · ${movimiento.descripcion}` : ''
+    if (movimiento.tipo === 'egreso') filas.push({ ...base, grupo: 'egresos', detalle: `${movimiento.categoria ? CATEGORIAS_EGRESO[movimiento.categoria] : 'Egreso'}${nota}`, monto: -movimiento.monto })
+    else if (movimiento.tipo === 'pase') {
+      const destino = movimiento.destino_medio ?? 'efectivo'
+      const llega = movimiento.monto_destino !== null && movimiento.monto_destino !== movimiento.monto ? ` (llegan ${formatearImporte(movimiento.monto_destino, destino)})` : ''
+      filas.push({ ...base, grupo: 'otros', detalle: `${RECIBIO[movimiento.persona]} ${METODOS_PAGO[movimiento.medio].toLowerCase()} → ${movimiento.destino_persona ? RECIBIO[movimiento.destino_persona] : ''} ${METODOS_PAGO[destino].toLowerCase()}${llega}${nota}`, monto: null, texto: formatearImporte(movimiento.monto, movimiento.medio) })
+    } else filas.push({ ...base, grupo: 'otros', detalle: `${TIPOS_MOVIMIENTO[movimiento.tipo]}${nota}`, monto: movimiento.tipo === 'retiro' ? -movimiento.monto : movimiento.monto })
+  }
+  return filas.sort((a, b) => b.fecha.localeCompare(a.fecha) || b.orden.localeCompare(a.orden))
+}
+
+function Finance({ ventas, movimientos, saldos, compras, cotizacion, onNavigate }: { ventas: Venta[]; movimientos: MovimientoCaja[]; saldos: SaldoCaja[]; compras: Compra[]; cotizacion: number | null; onNavigate: (view: Vista) => void }) {
+  const [modal, setModal] = useState<'egreso' | 'pase' | 'arqueo' | null>(null)
+  const [filtro, setFiltro] = useState<'todos' | 'ventas' | 'egresos' | 'otros'>('todos')
+  const [borrando, startTransition] = useTransition()
+  const mes = hoyEnArgentina().slice(0, 7)
+  const nombreMes = new Date(`${mes}-15T12:00:00`).toLocaleDateString('es-AR', { month: 'long' })
+  const datos = useMemo(() => calcularMes(mes, ventas, movimientos, compras, cotizacion), [mes, ventas, movimientos, compras, cotizacion])
+  const filas = useMemo(() => filasDeMovimientos(ventas, movimientos), [ventas, movimientos])
+  const visibles = filas.filter(fila => filtro === 'todos' || fila.grupo === filtro).slice(0, 100)
+  const cajas = [...Object.entries(RECIBIO).map(([clave, nombre]) => ({ clave, titulo: `Caja ${nombre}`, saldo: (medio: MetodoPago) => saldoDe(saldos, clave as Recibio, medio) })), { clave: 'total', titulo: 'Caja total', saldo: (medio: MetodoPago) => saldos.filter(saldo => saldo.medio === medio).reduce((suma, saldo) => suma + Number(saldo.saldo), 0) }]
+  const borrar = (fila: FilaMovimiento) => {
+    if (!fila.movimientoId || !window.confirm(`¿Borrar este movimiento?\n${fila.detalle}`)) return
+    startTransition(async () => { const error = await borrarMovimiento(fila.movimientoId!); if (error) window.alert(error) })
+  }
+  return <main className="app-shell"><Sidebar active="Finanzas" onNavigate={onNavigate} /><section className="main-content"><header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>Finanzas</strong></div></header><div className="content-wrap finance-page"><div className="page-heading"><div><p className="eyebrow">CONTROL FINANCIERO</p><h1>Finanzas</h1><p className="heading-subtitle">Cuánta plata tiene cada uno, qué entró, qué salió y cuánto se ganó.</p></div><div className="heading-actions"><button className="outline-button" onClick={() => setModal('arqueo')}>Arqueo de caja</button><button className="outline-button" onClick={() => setModal('pase')}>Pase, retiro o aporte</button><button className="quick-button" onClick={() => setModal('egreso')}><Plus /> Registrar egreso</button></div></div>
+    <div className="cajas-grid">{cajas.map(caja => { const pesos = caja.saldo('efectivo') + caja.saldo('transferencia'); return <div key={caja.clave} className={`card caja-card ${caja.clave === 'total' ? 'caja-total' : ''}`}><div className="caja-head"><h2>{caja.titulo}</h2><strong className={pesos < 0 ? 'monto-negativo' : ''}>{money(pesos)}</strong>{caja.saldo('dolares') !== 0 && <span className={caja.saldo('dolares') < 0 ? 'monto-negativo' : ''}>+ {formatearImporte(caja.saldo('dolares'), 'dolares')}</span>}</div><dl className="caja-medios">{MEDIOS_CAJA.map(medio => <Fragment key={medio}><dt>{METODOS_PAGO[medio]}</dt><dd className={caja.saldo(medio) < 0 ? 'monto-negativo' : ''}>{formatearImporte(caja.saldo(medio), medio)}</dd></Fragment>)}</dl></div> })}</div>
+    <div className="finanzas-mes-titulo"><h2>Este mes · {nombreMes}</h2>{(datos.faltaCotizacion || datos.unidadesSinCosto > 0) && <p className="venta-ajuste">{datos.faltaCotizacion && <>Para pasar dólares y costos a pesos falta la cotización del dólar: <button className="text-link" onClick={() => onNavigate('configuracion')}>cargala en Configuración</button>. </>}{datos.unidadesSinCosto > 0 && `${numero(datos.unidadesSinCosto)} unidades vendidas no tienen costo cargado (falta un ingreso de mercadería de ese producto), así que la ganancia real puede ser menor.`}</p>}</div>
+    <div className="metrics-grid finance-metrics"><Metric icon={<span className="metric-dot green" />} label="Vendido" value={money(datos.vendidoPesos) + (datos.vendidoUsd ? ` + US$ ${numero(datos.vendidoUsd)}` : '')} tone="mint" /><Metric icon={<ShoppingBag />} label="Costo de lo vendido" value={money(Math.round(datos.costoVendido))} tone="peach" /><Metric icon={<span className="metric-dot red" />} label="Gastos (sin mercadería)" value={money(Math.round(datos.gastos))} tone="peach" /><Metric icon={<span className="metric-dot purple" />} label="Ganancia real" value={money(Math.round(datos.ganancia))} tone="purple" /></div>
+    <div className="dashboard-grid finanzas-detalle"><div className="card"><div className="card-head"><div><h2>Egresos por categoría</h2><p>Todo lo que salió este mes, en pesos</p></div><strong>{money(Math.round(datos.egresosTotal))}</strong></div><div className="categorias-egreso">{datos.porCategoria.length === 0 ? <p className="dashboard-vacio">Todavía no hay egresos este mes.</p> : datos.porCategoria.map(([categoria, monto]) => <div key={categoria} className="horizontal-row"><span>{CATEGORIAS_EGRESO[categoria]}</span><div className="horizontal-track"><i className="purple" style={{ width: `${monto / datos.porCategoria[0][1] * 100}%` }} /></div><strong>{money(Math.round(monto))}</strong></div>)}</div></div><div className="card"><div className="card-head"><div><h2>Cómo se calcula la ganancia</h2><p>{nombreMes}, en pesos</p></div></div><dl className="ficha-datos"><dt>Vendido</dt><dd>{money(Math.round(datos.vendido))}</dd><dt>− Costo de lo vendido</dt><dd>{money(Math.round(datos.costoVendido))}</dd><dt>− Gastos</dt><dd>{money(Math.round(datos.gastos))}</dd><dt>= Ganancia real</dt><dd>{money(Math.round(datos.ganancia))}</dd><dt>Retiros de socios</dt><dd>{money(Math.round(datos.retiros))}</dd></dl><p className="venta-lista">El costo sale del último ingreso de mercadería de cada producto. Los egresos de “Mercadería” no se restan como gasto porque ya están en el costo.</p></div></div>
+    <div className="finance-toolbar"><div className="filter-pills" role="group" aria-label="Filtrar movimientos">{([['todos', 'Todos'], ['ventas', 'Ventas'], ['egresos', 'Egresos'], ['otros', 'Pases, retiros y ajustes']] as const).map(([clave, etiqueta]) => <button key={clave} className={filtro === clave ? 'filter-pill selected' : 'filter-pill'} onClick={() => setFiltro(clave)}>{etiqueta}</button>)}</div></div>
+    <div className="card clients-table-card"><div className="clients-table-head"><div><h2>Movimientos</h2><p>Las ventas entran solas a la caja de quien cobró</p></div></div>{visibles.length === 0 ? <div className="empty-state">Todavía no hay movimientos.</div> : <div className="sales-table-wrap"><table className="clients-table sales-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Caja</th><th>Monto</th><th></th></tr></thead><tbody>{visibles.map(fila => <tr key={fila.clave}><td data-label="Fecha">{formatearFecha(fila.fecha)}</td><td data-label="Tipo"><span className={`status-pill movimiento-${fila.grupo}`}>{fila.tipo}</span></td><td className="celda-principal"><strong>{fila.detalle}</strong></td><td data-label="Caja">{fila.quien} · {METODOS_PAGO[fila.medio].toLowerCase()}</td><td data-label="Monto"><strong className={fila.monto === null ? '' : fila.monto < 0 ? 'monto-negativo' : 'monto-positivo'}>{fila.monto === null ? fila.texto : conSigno(fila.monto, fila.medio)}</strong></td><td data-label="">{fila.movimientoId && <button className="text-link" disabled={borrando} onClick={() => borrar(fila)}>Borrar</button>}</td></tr>)}</tbody></table></div>}</div>
+  </div></section>{modal === 'arqueo' && <ArqueoModal saldos={saldos} onClose={() => setModal(null)} />}{(modal === 'egreso' || modal === 'pase') && <MovimientoModal inicial={modal} onClose={() => setModal(null)} />}</main>
+}
+
+function MovimientoModal({ inicial, onClose }: { inicial: 'egreso' | 'pase'; onClose: () => void }) {
+  const [tipo, setTipo] = useState<'egreso' | 'pase' | 'retiro' | 'aporte'>(inicial)
+  const [fecha, setFecha] = useState(hoyEnArgentina)
+  const [persona, setPersona] = useState('')
+  const [medio, setMedio] = useState<MetodoPago>('efectivo')
+  const [monto, setMonto] = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [destinoPersona, setDestinoPersona] = useState('')
+  const [destinoMedio, setDestinoMedio] = useState<MetodoPago>('efectivo')
+  const [montoDestino, setMontoDestino] = useState('')
+  const [descripcion, setDescripcion] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, startTransition] = useTransition()
+  const terminar = useCerrarAlTerminar(guardando, onClose)
+  useBloquearScroll()
+  const cambiaMoneda = tipo === 'pase' && (medio === 'dolares') !== (destinoMedio === 'dolares')
+  const valido = persona !== '' && Number(monto) > 0 && (tipo !== 'egreso' || categoria !== '') && (tipo !== 'pase' || (destinoPersona !== '' && (!cambiaMoneda || Number(montoDestino) > 0)))
+  const etiquetaPersona = { egreso: 'Quién pagó', pase: 'Sale de', retiro: 'Quién retira', aporte: 'Quién pone la plata' }[tipo]
+  const guardar = () => startTransition(async () => {
+    const problema = await registrarMovimiento({ tipo, fecha, persona, medio, monto: Number(monto), destinoPersona: tipo === 'pase' ? destinoPersona : null, destinoMedio: tipo === 'pase' ? destinoMedio : null, montoDestino: cambiaMoneda ? Number(montoDestino) : null, categoria: tipo === 'egreso' ? categoria : null, descripcion })
+    if (problema) setError(problema)
+    else terminar()
+  })
+  return <div className="modal-backdrop"><section className="sale-modal new-sale-modal movimiento-modal" role="dialog" aria-modal="true" aria-labelledby="movimiento-title"><header><div><p className="eyebrow">CAJA</p><h2 id="movimiento-title">{tipo === 'egreso' ? 'Registrar egreso' : TIPOS_MOVIMIENTO[tipo]}</h2></div><button className="close-button" onClick={onClose} aria-label="Cerrar"><X /></button></header><div className="modal-body"><div className="filter-pills" role="group" aria-label="Tipo de movimiento">{(['egreso', 'pase', 'retiro', 'aporte'] as const).map(opcion => <button key={opcion} type="button" className={tipo === opcion ? 'filter-pill selected' : 'filter-pill'} onClick={() => setTipo(opcion)}>{opcion === 'retiro' ? 'Retiro' : TIPOS_MOVIMIENTO[opcion]}</button>)}</div><p className="venta-lista">{{ egreso: 'Plata que sale del negocio: alquiler, sueldos, mercadería, etc.', pase: 'Plata que pasa de una caja a otra: entre Lucas y Gonzalo, depositar efectivo o comprar dólares.', retiro: 'Un socio se lleva plata del negocio (ganancia).', aporte: 'Un socio pone plata en el negocio.' }[tipo]}</p><div className="modal-fields"><label className="field"><span>{etiquetaPersona}</span><select value={persona} onChange={event => setPersona(event.target.value)} aria-label={etiquetaPersona}><option value="">Elegí</option>{opciones(RECIBIO)}</select></label><label className="field"><span>{tipo === 'pase' ? 'Desde' : 'Con'}</span><select value={medio} onChange={event => setMedio(event.target.value as MetodoPago)} aria-label="Medio">{opciones(METODOS_PAGO)}</select></label></div>{tipo === 'pase' && <div className="modal-fields"><label className="field"><span>Va a</span><select value={destinoPersona} onChange={event => setDestinoPersona(event.target.value)} aria-label="Va a"><option value="">Elegí</option>{opciones(RECIBIO)}</select></label><label className="field"><span>Como</span><select value={destinoMedio} onChange={event => setDestinoMedio(event.target.value as MetodoPago)} aria-label="Medio de destino">{opciones(METODOS_PAGO)}</select></label></div>}<div className="modal-fields"><label className="field"><span>Monto ({medio === 'dolares' ? 'US$' : '$'})</span><input type="number" min="0" step="0.01" value={monto} onChange={event => setMonto(event.target.value)} aria-label="Monto" /></label><label className="field"><span>Fecha</span><input type="date" value={fecha} max={hoyEnArgentina()} onChange={event => setFecha(event.target.value)} /></label></div>{cambiaMoneda && <label className="field"><span>Cuánto llega ({destinoMedio === 'dolares' ? 'US$' : '$'})</span><input type="number" min="0" step="0.01" value={montoDestino} onChange={event => setMontoDestino(event.target.value)} aria-label="Cuánto llega" /></label>}{tipo === 'egreso' && <label className="field"><span>Categoría</span><select value={categoria} onChange={event => setCategoria(event.target.value)} aria-label="Categoría"><option value="">Elegí</option>{opciones(CATEGORIAS_EGRESO)}</select></label>}<label className="field"><span>Detalle <em>(opcional)</em></span><input value={descripcion} onChange={event => setDescripcion(event.target.value)} placeholder={{ egreso: 'Ej. alquiler de octubre', pase: 'Ej. Lucas le pasa el efectivo a Gonzalo', retiro: 'Ej. retiro de ganancia', aporte: 'Ej. para pagar mercadería' }[tipo]} /></label>{error && <p className="login-error" role="alert">{error}</p>}</div><footer><button className="cancel-button" onClick={onClose}>Cancelar</button><button className="quick-button" disabled={!valido || guardando} onClick={guardar}>{guardando ? 'Guardando…' : 'Guardar'}</button></footer></section></div>
+}
+
+function ArqueoModal({ saldos, onClose }: { saldos: SaldoCaja[]; onClose: () => void }) {
+  const [persona, setPersona] = useState('')
+  const [medio, setMedio] = useState<MetodoPago>('efectivo')
+  const [contado, setContado] = useState('')
+  const [nota, setNota] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, startTransition] = useTransition()
+  const terminar = useCerrarAlTerminar(guardando, onClose)
+  useBloquearScroll()
+  const calculado = persona ? saldoDe(saldos, persona as Recibio, medio) : null
+  const diferencia = contado.trim() !== '' && calculado !== null ? Math.round((Number(contado) - calculado) * 100) / 100 : null
+  const guardar = () => startTransition(async () => {
+    const resultado = await registrarArqueo(persona, medio, Number(contado), nota)
+    if ('error' in resultado) setError(resultado.error ?? 'No se pudo registrar el arqueo.')
+    else terminar()
+  })
+  return <div className="modal-backdrop"><section className="sale-modal new-client-modal arqueo-modal" role="dialog" aria-modal="true" aria-labelledby="arqueo-title"><header><div><p className="eyebrow">CAJA</p><h2 id="arqueo-title">Arqueo de caja</h2></div><button className="close-button" onClick={onClose} aria-label="Cerrar"><X /></button></header><div className="modal-body"><p className="venta-lista">Contá la plata de una caja y cargá cuánto hay. Si no coincide con lo que calcula el CRM, se registra un ajuste por la diferencia. La primera vez sirve para cargar el saldo con el que arrancan.</p><div className="modal-fields"><label className="field"><span>Caja de</span><select value={persona} onChange={event => setPersona(event.target.value)} aria-label="Caja de"><option value="">Elegí</option>{opciones(RECIBIO)}</select></label><label className="field"><span>Medio</span><select value={medio} onChange={event => setMedio(event.target.value as MetodoPago)} aria-label="Medio">{opciones(METODOS_PAGO)}</select></label></div>{calculado !== null && <p className="arqueo-calculado">Según el CRM hay <strong>{formatearImporte(calculado, medio)}</strong></p>}<label className="field"><span>Cuánto contaste ({medio === 'dolares' ? 'US$' : '$'})</span><input type="number" min="0" step="0.01" value={contado} onChange={event => setContado(event.target.value)} aria-label="Cuánto contaste" /></label>{diferencia !== null && <p className={diferencia === 0 ? 'venta-promo' : 'venta-ajuste'}>{diferencia === 0 ? 'Coincide: no hace falta ajuste.' : `${diferencia > 0 ? 'Sobran' : 'Faltan'} ${formatearImporte(Math.abs(diferencia), medio)}: se registra un ajuste.`}</p>}<label className="field"><span>Nota <em>(opcional)</em></span><input value={nota} onChange={event => setNota(event.target.value)} placeholder="Ej. saldo inicial" /></label>{error && <p className="login-error" role="alert">{error}</p>}</div><footer><button className="cancel-button" onClick={onClose}>Cancelar</button><button className="quick-button" disabled={!persona || contado.trim() === '' || Number(contado) < 0 || guardando} onClick={guardar}>{guardando ? 'Guardando…' : diferencia === 0 ? 'Listo' : 'Registrar arqueo'}</button></footer></section></div>
+}
 
 function Reports({ onNavigate }: { onNavigate: (view: Vista) => void }) { return <SeccionVacia active="Reportes" breadcrumb="Reportes" eyebrow="ANÁLISIS DEL NEGOCIO" title="Reportes" subtitle="Entendé qué se vende y cómo evoluciona tu tienda." mensaje="Los reportes se arman en la próxima etapa, con las ventas que se vayan cargando." onNavigate={onNavigate} /> }
 

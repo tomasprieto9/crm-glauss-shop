@@ -1,5 +1,6 @@
 import CrmApp from '@/components/crm-app'
 import type { Cliente } from '@/lib/clientes'
+import type { MovimientoCaja, SaldoCaja } from '@/lib/finanzas'
 import type { Compra, Configuracion, Producto, Sabor } from '@/lib/productos'
 import { createClient } from '@/lib/supabase/server'
 import type { Venta } from '@/lib/ventas'
@@ -55,6 +56,16 @@ async function cargarCompras(supabase: Supabase) {
   return data as unknown as Compra[]
 }
 
+async function cargarFinanzas(supabase: Supabase) {
+  const [movimientos, saldos] = await Promise.all([
+    supabase.from('movimientos_caja').select('*').order('numero', { ascending: false }).limit(FILAS_POR_CONSULTA),
+    supabase.from('saldos_caja').select('persona, medio, saldo'),
+  ])
+  if (movimientos.error) throw new Error(`No se pudieron cargar los movimientos de caja: ${movimientos.error.message}`)
+  if (saldos.error) throw new Error(`No se pudieron cargar los saldos de caja: ${saldos.error.message}`)
+  return { movimientos: movimientos.data as MovimientoCaja[], saldos: saldos.data as SaldoCaja[] }
+}
+
 async function cargarConfiguracion(supabase: Supabase) {
   const { data, error } = await supabase.from('configuracion').select('cotizacion_usd, actualizada_en').eq('id', 1).single()
   if (error) throw new Error(`No se pudo cargar la configuración: ${error.message}`)
@@ -64,6 +75,6 @@ async function cargarConfiguracion(supabase: Supabase) {
 export default async function Page() {
   const supabase = await createClient()
   const { data } = await supabase.auth.getClaims()
-  const [clientes, ventas, productos, compras, configuracion] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase)])
-  return <CrmApp email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} />
+  const [clientes, ventas, productos, compras, configuracion, finanzas] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase), cargarFinanzas(supabase)])
+  return <CrmApp email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} />
 }
