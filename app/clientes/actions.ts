@@ -32,7 +32,6 @@ export async function crearCliente(formData: FormData) {
   const segmento = String(formData.get('segmento') ?? '')
   const zona = String(formData.get('zona') ?? '')
   const notas = String(formData.get('notas') ?? '').trim()
-  if (formData.get('mayor_de_18') !== 'si') return 'Solo se cargan clientes mayores de 18 años.'
   if (!nombre) return 'Falta el nombre.'
   if (!telefono) return 'Revisá el teléfono: con código de área, sin 0 ni 15 (ej. 221 438 3399), o con + y código de país.'
   if (!Object.hasOwn(SEGMENTOS, segmento)) return 'Elegí un segmento.'
