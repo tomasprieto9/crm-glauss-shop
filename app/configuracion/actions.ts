@@ -16,3 +16,13 @@ export async function guardarCotizacion(pesosPorDolar: number) {
   revalidatePath('/')
   return null
 }
+
+export async function guardarStockBajo(unidades: number) {
+  const valor = Number(unidades)
+  if (!Number.isInteger(valor) || valor < 0 || valor > 1000) return 'Escribí un número de unidades (ej. 4).'
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('configuracion').update({ stock_bajo: valor, actualizada_en: new Date().toISOString() }).eq('id', 1).select('id')
+  if (error || data.length === 0) return 'No se pudo guardar. Probá de nuevo.'
+  revalidatePath('/')
+  return null
+}

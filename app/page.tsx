@@ -35,7 +35,7 @@ async function cargarVentas(supabase: Supabase) {
 async function cargarProductos(supabase: Supabase) {
   const [productos, sabores] = await Promise.all([
     supabase.from('productos').select('*').limit(FILAS_POR_CONSULTA),
-    supabase.from('sabores_con_stock').select('id, producto_id, nombre, activo, stock').limit(5000),
+    supabase.from('sabores_con_stock').select('id, producto_id, nombre, codigo, activo, stock, entradas, salidas, defectuosos, ajustes').limit(5000),
   ])
   if (productos.error) throw new Error(`No se pudieron cargar los productos: ${productos.error.message}`)
   if (sabores.error) throw new Error(`No se pudieron cargar los sabores: ${sabores.error.message}`)
@@ -67,7 +67,7 @@ async function cargarFinanzas(supabase: Supabase) {
 }
 
 async function cargarConfiguracion(supabase: Supabase) {
-  const { data, error } = await supabase.from('configuracion').select('cotizacion_usd, actualizada_en').eq('id', 1).single()
+  const { data, error } = await supabase.from('configuracion').select('cotizacion_usd, stock_bajo, actualizada_en').eq('id', 1).single()
   if (error) throw new Error(`No se pudo cargar la configuración: ${error.message}`)
   return data as Configuracion
 }

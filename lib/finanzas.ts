@@ -1,4 +1,4 @@
-import type { Compra } from '@/lib/productos'
+import type { Producto } from '@/lib/productos'
 import type { MetodoPago, Recibio, Venta } from '@/lib/ventas'
 
 export const TIPOS_MOVIMIENTO = { egreso: 'Egreso', pase: 'Pase', retiro: 'Retiro de socio', aporte: 'Aporte', ajuste: 'Ajuste de arqueo' }
@@ -42,12 +42,12 @@ export const saldoDe = (saldos: SaldoCaja[], persona: Recibio, medio: MetodoPago
   saldos.filter(saldo => saldo.persona === persona && saldo.medio === medio).reduce((suma, saldo) => suma + Number(saldo.saldo), 0)
 
 // Números del mes (aaaa-mm) para Finanzas. Todo en pesos: los dólares se pasan con la cotización.
-// Ganancia real = lo vendido - el costo de lo vendido (último costo en US$ de cada producto) - gastos.
+// Ganancia real = lo vendido - el costo de lo vendido (costo en US$ de cada producto) - gastos.
 // Los egresos de categoría "mercadería" no cuentan como gasto: ya están en el costo de lo vendido.
-export function calcularMes(mes: string, ventas: Venta[], movimientos: MovimientoCaja[], compras: Compra[], cotizacion: number | null) {
+export function calcularMes(mes: string, ventas: Venta[], movimientos: MovimientoCaja[], productos: Producto[], cotizacion: number | null) {
   const aPesos = (monto: number, medio: MetodoPago) => medio === 'dolares' ? (cotizacion ? monto * cotizacion : null) : monto
   const ultimoCosto = new Map<string, number>()
-  for (const compra of compras) if (!ultimoCosto.has(compra.producto_id)) ultimoCosto.set(compra.producto_id, compra.costo_unitario_usd)
+  for (const producto of productos) if (producto.costo_usd !== null) ultimoCosto.set(producto.id, producto.costo_usd)
 
   const ventasMes = ventas.filter(venta => venta.fecha.startsWith(mes))
   const movimientosMes = movimientos.filter(movimiento => movimiento.fecha.startsWith(mes))
