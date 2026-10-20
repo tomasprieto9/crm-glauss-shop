@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, Plus, Search, ShoppingBag, Users, X, ArrowLeft, Phone } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cerrarSesion } from '@/app/login/actions'
+import { vistaValida, type Vista } from '@/lib/vistas'
 import { actualizarCliente, crearCliente } from '@/app/clientes/actions'
 import { guardarCotizacion, guardarStockBajo } from '@/app/configuracion/actions'
 import { borrarMovimiento, registrarArqueo, registrarMovimiento } from '@/app/finanzas/actions'
@@ -18,7 +19,7 @@ import { METODOS_PAGO, RECIBIO, calcularTotales, formatearImporte, hoyEnArgentin
 const UsuarioContext = createContext('')
 const ClientesContext = createContext<Cliente[]>([])
 
-type Vista = 'dashboard' | 'clientes' | 'ventas' | 'reactivacion' | 'productos' | 'finanzas' | 'reportes' | 'configuracion'
+
 
 type Client = { id: number; first: string; last: string; phone: string; lastPurchase: string; purchases: number; spent: number; status: 'Activo' | 'A reactivar' }
 
@@ -48,13 +49,31 @@ const POR_PAGINA = 50
 type Filtros = { texto: string; segmento: string; zona: string; pagina: number }
 const FILTROS_INICIALES: Filtros = { texto: '', segmento: '', zona: '', pagina: 1 }
 
-export default function CrmApp({ email, clientes, ventas, productos, compras, configuracion, movimientos, saldos }: { email: string; clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
-  return <UsuarioContext value={email}><ClientesContext value={clientes}><Vistas clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={movimientos} saldos={saldos} /></ClientesContext></UsuarioContext>
+export default function CrmApp({ email, clientes, ventas, productos, compras, configuracion, movimientos, saldos, seccionInicial, clienteInicial }: { seccionInicial: Vista; clienteInicial: string | null; email: string; clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
+  return <UsuarioContext value={email}><ClientesContext value={clientes}><Vistas seccionInicial={seccionInicial} clienteInicial={clienteInicial} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={movimientos} saldos={saldos} /></ClientesContext></UsuarioContext>
 }
 
-function Vistas({ clientes, ventas, productos, compras, configuracion, movimientos, saldos }: { clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
-  const [view, setView] = useState<Vista>('dashboard')
-  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null)
+function Vistas({ seccionInicial, clienteInicial, clientes, ventas, productos, compras, configuracion, movimientos, saldos }: { seccionInicial: Vista; clienteInicial: string | null; clientes: Cliente[]; ventas: Venta[]; productos: Producto[]; compras: Compra[]; configuracion: Configuracion; movimientos: MovimientoCaja[]; saldos: SaldoCaja[] }) {
+  const [view, setView] = useState<Vista>(seccionInicial)
+  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(clienteInicial)
+  // La sección y la ficha abierta quedan en la dirección (?seccion=...&cliente=...): al recargar se
+  // vuelve al mismo lugar, y el botón "atrás" del navegador vuelve a la pantalla anterior.
+  useEffect(() => {
+    const parametros = new URLSearchParams()
+    if (view !== 'dashboard') parametros.set('seccion', view)
+    if (seleccionadoId) parametros.set('cliente', seleccionadoId)
+    const destino = parametros.size ? `/?${parametros}` : '/'
+    if (destino !== window.location.pathname + window.location.search) window.history.pushState(null, '', destino)
+  }, [view, seleccionadoId])
+  useEffect(() => {
+    const alVolver = () => {
+      const parametros = new URLSearchParams(window.location.search)
+      setView(vistaValida(parametros.get('seccion')))
+      setSeleccionadoId(parametros.get('cliente'))
+    }
+    window.addEventListener('popstate', alVolver)
+    return () => window.removeEventListener('popstate', alVolver)
+  }, [])
   // Los filtros viven acá para que no se pierdan al entrar y salir de una ficha.
   const [filtros, setFiltros] = useState(FILTROS_INICIALES)
   const seleccionado = clientes.find(cliente => cliente.id === seleccionadoId)

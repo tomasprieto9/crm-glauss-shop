@@ -1,4 +1,5 @@
 import CrmApp from '@/components/crm-app'
+import { vistaValida } from '@/lib/vistas'
 import type { Cliente } from '@/lib/clientes'
 import type { MovimientoCaja, SaldoCaja } from '@/lib/finanzas'
 import type { Compra, Configuracion, Producto, Sabor } from '@/lib/productos'
@@ -72,9 +73,10 @@ async function cargarConfiguracion(supabase: Supabase) {
   return data as Configuracion
 }
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ seccion?: string; cliente?: string }> }) {
+  const { seccion, cliente } = await searchParams
   const supabase = await createClient()
   const { data } = await supabase.auth.getClaims()
   const [clientes, ventas, productos, compras, configuracion, finanzas] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase), cargarFinanzas(supabase)])
-  return <CrmApp email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} />
+  return <CrmApp seccionInicial={vistaValida(seccion)} clienteInicial={typeof cliente === 'string' ? cliente : null} email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} />
 }
