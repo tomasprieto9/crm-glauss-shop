@@ -12,20 +12,27 @@ const leerPrecio = (formData: FormData, campo: string) => {
 const precioValido = (precio: number | null) => precio === null || (Number.isFinite(precio) && precio >= 0 && precio <= 100_000_000)
 const redondear = (precio: number | null) => precio === null ? null : Math.round(precio * 100) / 100
 
-// Un renglón de sabor: "Watermelon Ice" o, con código, "ELF15-02 | Watermelon Ice".
-function leerSabores(texto: string) {
-  const porNombre = new Map<string, string | null>()
-  for (const renglon of texto.split('\n')) {
-    const [primero, ...resto] = renglon.split('|')
-    const nombre = (resto.length ? resto.join('|') : primero).trim().slice(0, 100)
-    const codigo = resto.length ? primero.trim().toUpperCase().slice(0, 40) || null : null
-    if (nombre && !porNombre.has(nombre)) porNombre.set(nombre, codigo)
+type SaborEnviado = { id: string | null; codigo: string | null; nombre: string }
+
+// Sabores del modal: [{ id (si ya existía), codigo, nombre }]. Los renglones sin nombre se ignoran.
+function leerSabores(texto: string): SaborEnviado[] | null {
+  try {
+    const lista: unknown = JSON.parse(texto)
+    if (!Array.isArray(lista)) return null
+    return lista
+      .map(sabor => ({
+        id: typeof sabor?.id === 'string' && sabor.id ? sabor.id : null,
+        codigo: String(sabor?.codigo ?? '').trim().toUpperCase().slice(0, 40) || null,
+        nombre: String(sabor?.nombre ?? '').trim().slice(0, 100),
+      }))
+      .filter(sabor => sabor.nombre)
+  } catch {
+    return null
   }
-  return porNombre
 }
 
-// Crea un producto o, si viene id, lo actualiza. Los sabores llegan uno por renglón: los nuevos se
-// agregan y los que se sacan quedan inactivos (conservan su historial de stock y ventas).
+// Crea un producto o, si viene id, lo actualiza. Cada sabor que ya existía conserva su id (así se puede
+// renombrar sin perder stock ni historial); los nuevos se agregan y los que se sacan quedan inactivos.
 export async function guardarProducto(id: string | null, formData: FormData) {
   const marca = String(formData.get('marca') ?? '').trim().slice(0, 100)
   const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
@@ -34,14 +41,18 @@ export async function guardarProducto(id: string | null, formData: FormData) {
   const usd = leerPrecio(formData, 'precio_usd')
   const promo = leerPrecio(formData, 'promo_x3')
   const costo = leerPrecio(formData, 'costo_usd')
-  const codigos = leerSabores(String(formData.get('sabores') ?? ''))
-  const sabores = [...codigos.keys()]
+  const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
   if (!marca) return 'Falta la marca.'
   if (!nombre) return 'Falta el nombre del producto.'
   if (efectivo === null || transferencia === null) return 'Faltan los precios en efectivo y transferencia.'
   if (![efectivo, transferencia, usd, promo, costo].every(precioValido)) return 'Revisá los precios y el costo.'
-  if (sabores.length === 0) return 'Cargá al menos un sabor (uno por renglón).'
+  if (!sabores) return 'No se pudieron leer los sabores. Probá de nuevo.'
+  if (sabores.length === 0) return 'Agregá al menos un sabor.'
   if (sabores.length > 200) return 'Hay demasiados sabores.'
+  const nombres = sabores.map(sabor => sabor.nombre.toLowerCase())
+  if (new Set(nombres).size !== nombres.length) return 'Hay sabores repetidos.'
+  const codigos = sabores.map(sabor => sabor.codigo).filter(Boolean)
+  if (new Set(codigos).size !== codigos.length) return 'Hay códigos de sabor repetidos.'
 
   const datos = { marca, nombre, precio_efectivo: redondear(efectivo), precio_transferencia: redondear(transferencia), precio_usd: redondear(usd), promo_x3: redondear(promo), costo_usd: redondear(costo) }
   const supabase = await createClient()
@@ -54,19 +65,33 @@ export async function guardarProducto(id: string | null, formData: FormData) {
 
   const { data: existentes, error } = await supabase.from('sabores').select('id, nombre, codigo, activo').eq('producto_id', productoId)
   if (error) return 'Se guardó el producto, pero no los sabores. Probá de nuevo.'
-  const porNombre = new Map(existentes.map(sabor => [sabor.nombre, sabor]))
-  const nuevos = sabores.filter(sabor => !porNombre.has(sabor)).map(sabor => ({ producto_id: productoId, nombre: sabor, codigo: codigos.get(sabor) ?? null }))
-  const activar = existentes.filter(sabor => !sabor.activo && sabores.includes(sabor.nombre)).map(sabor => sabor.id)
-  const desactivar = existentes.filter(sabor => sabor.activo && !sabores.includes(sabor.nombre)).map(sabor => sabor.id)
-  // Solo se cambia el código si el renglón trae uno (escribir solo el nombre no borra el código).
-  const conCodigoNuevo = existentes.filter(sabor => codigos.get(sabor.nombre) && codigos.get(sabor.nombre) !== sabor.codigo)
-  const resultados = await Promise.all([
-    nuevos.length ? supabase.from('sabores').insert(nuevos) : null,
-    activar.length ? supabase.from('sabores').update({ activo: true }).in('id', activar) : null,
+  const porId = new Map(existentes.map(sabor => [sabor.id, sabor]))
+  const porNombre = new Map(existentes.map(sabor => [sabor.nombre.toLowerCase(), sabor]))
+  const usados = new Set<string>()
+  const cambios: { id: string; datos: Record<string, unknown> }[] = []
+  const nuevos: { producto_id: string; nombre: string; codigo: string | null }[] = []
+  for (const sabor of sabores) {
+    // Si el renglón trae id es ese sabor (aunque lo hayan renombrado); si no, se busca uno con el mismo nombre.
+    const existente = (sabor.id ? porId.get(sabor.id) : undefined) ?? porNombre.get(sabor.nombre.toLowerCase())
+    if (existente && !usados.has(existente.id)) {
+      usados.add(existente.id)
+      const cambio: Record<string, unknown> = {}
+      if (existente.nombre !== sabor.nombre) cambio.nombre = sabor.nombre
+      if ((existente.codigo ?? null) !== sabor.codigo) cambio.codigo = sabor.codigo
+      if (!existente.activo) cambio.activo = true
+      if (Object.keys(cambio).length) cambios.push({ id: existente.id, datos: cambio })
+    } else nuevos.push({ producto_id: productoId, nombre: sabor.nombre, codigo: sabor.codigo })
+  }
+  const desactivar = existentes.filter(sabor => sabor.activo && !usados.has(sabor.id)).map(sabor => sabor.id)
+
+  // Primero se sacan y renombran los existentes, después se agregan los nuevos (evita choques de nombre o código).
+  const primeros = await Promise.all([
     desactivar.length ? supabase.from('sabores').update({ activo: false }).in('id', desactivar) : null,
-    ...conCodigoNuevo.map(sabor => supabase.from('sabores').update({ codigo: codigos.get(sabor.nombre) }).eq('id', sabor.id)),
+    ...cambios.map(cambio => supabase.from('sabores').update(cambio.datos).eq('id', cambio.id)),
   ])
-  if (resultados.some(resultado => resultado?.error?.code === '23505')) return 'Se guardó el producto, pero algún código de sabor ya lo usa otro sabor.'
+  const segundos = nuevos.length ? [await supabase.from('sabores').insert(nuevos)] : []
+  const resultados = [...primeros, ...segundos]
+  if (resultados.some(resultado => resultado?.error?.code === '23505')) return 'Se guardó el producto, pero algún nombre o código de sabor ya existe (puede ser uno sacado de la lista).'
   if (resultados.some(resultado => resultado?.error)) return 'Se guardó el producto, pero no todos los sabores. Probá de nuevo.'
   revalidatePath('/')
   return null
