@@ -14,6 +14,7 @@ export type Producto = {
   precio_transferencia: number
   precio_usd: number | null
   promo_x3: number | null // precio en pesos por 3 unidades del modelo
+  foto_url: string | null
   created_at: string
   sabores: Sabor[]
 }

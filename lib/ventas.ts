@@ -28,6 +28,9 @@ export type Venta = {
   total: number
   total_lista: number | null
   created_at: string
+  cargada_por_email: string | null
+  editada_por_email: string | null
+  editada_en: string | null
   clientes: { nombre: string } | null
   venta_items: ItemVendido[]
 }

@@ -24,7 +24,7 @@ async function cargarClientes(supabase: Supabase) {
 async function cargarVentas(supabase: Supabase) {
   const { data, error } = await supabase
     .from('ventas')
-    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, created_at, clientes(nombre), venta_items(id, producto_id, sabor_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, productos(marca, nombre))')
+    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, created_at, cargada_por_email, editada_por_email, editada_en, clientes(nombre), venta_items(id, producto_id, sabor_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, productos(marca, nombre))')
     .order('numero', { ascending: false })
     .limit(FILAS_POR_CONSULTA)
   if (error) throw new Error(`No se pudieron cargar las ventas: ${error.message}`)
