@@ -13,6 +13,7 @@ const precioValido = (precio: number | null) => precio === null || (Number.isFin
 const redondear = (precio: number | null) => precio === null ? null : Math.round(precio * 100) / 100
 
 type SaborEnviado = { id: string | null; codigo: string | null; nombre: string }
+type Supabase = Awaited<ReturnType<typeof createClient>>
 
 // Sabores del modal: [{ id (si ya existía), codigo, nombre }]. Los renglones sin nombre se ignoran.
 function leerSabores(texto: string): SaborEnviado[] | null {
@@ -31,21 +32,7 @@ function leerSabores(texto: string): SaborEnviado[] | null {
   }
 }
 
-// Crea un producto o, si viene id, lo actualiza. Cada sabor que ya existía conserva su id (así se puede
-// renombrar sin perder stock ni historial); los nuevos se agregan y los que se sacan quedan inactivos.
-export async function guardarProducto(id: string | null, formData: FormData) {
-  const marca = String(formData.get('marca') ?? '').trim().slice(0, 100)
-  const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
-  const efectivo = leerPrecio(formData, 'precio_efectivo')
-  const transferencia = leerPrecio(formData, 'precio_transferencia')
-  const usd = leerPrecio(formData, 'precio_usd')
-  const promo = leerPrecio(formData, 'promo_x3')
-  const costo = leerPrecio(formData, 'costo_usd')
-  const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
-  if (!marca) return 'Falta la marca.'
-  if (!nombre) return 'Falta el nombre del producto.'
-  if (efectivo === null || transferencia === null) return 'Faltan los precios en efectivo y transferencia.'
-  if (![efectivo, transferencia, usd, promo, costo].every(precioValido)) return 'Revisá los precios y el costo.'
+function validarSabores(sabores: SaborEnviado[] | null) {
   if (!sabores) return 'No se pudieron leer los sabores. Probá de nuevo.'
   if (sabores.length === 0) return 'Agregá al menos un sabor.'
   if (sabores.length > 200) return 'Hay demasiados sabores.'
@@ -53,16 +40,23 @@ export async function guardarProducto(id: string | null, formData: FormData) {
   if (new Set(nombres).size !== nombres.length) return 'Hay sabores repetidos.'
   const codigos = sabores.map(sabor => sabor.codigo).filter(Boolean)
   if (new Set(codigos).size !== codigos.length) return 'Hay códigos de sabor repetidos.'
+  return null
+}
 
-  const datos = { marca, nombre, precio_efectivo: redondear(efectivo), precio_transferencia: redondear(transferencia), precio_usd: redondear(usd), promo_x3: redondear(promo), costo_usd: redondear(costo) }
-  const supabase = await createClient()
-  const guardado = id
-    ? await supabase.from('productos').update(datos).eq('id', id).select('id').single()
-    : await supabase.from('productos').insert(datos).select('id').single()
-  if (guardado.error?.code === '23505') return 'Ya existe un producto con esa marca y ese nombre.'
-  if (guardado.error) return 'No se pudo guardar el producto. Probá de nuevo.'
-  const productoId = guardado.data.id
+function leerPrecios(formData: FormData) {
+  const efectivo = leerPrecio(formData, 'precio_efectivo')
+  const transferencia = leerPrecio(formData, 'precio_transferencia')
+  const usd = leerPrecio(formData, 'precio_usd')
+  const promo = leerPrecio(formData, 'promo_x3')
+  const costo = leerPrecio(formData, 'costo_usd')
+  if (efectivo === null || transferencia === null) return { error: 'Faltan los precios en efectivo y transferencia.' }
+  if (![efectivo, transferencia, usd, promo, costo].every(precioValido)) return { error: 'Revisá los precios y el costo.' }
+  return { datos: { precio_efectivo: redondear(efectivo), precio_transferencia: redondear(transferencia), precio_usd: redondear(usd), promo_x3: redondear(promo), costo_usd: redondear(costo) } }
+}
 
+// Cada sabor que ya existía conserva su id (así se puede renombrar sin perder stock ni historial);
+// los nuevos se agregan y los que se sacan quedan inactivos.
+async function sincronizarSabores(supabase: Supabase, productoId: string, sabores: SaborEnviado[]) {
   const { data: existentes, error } = await supabase.from('sabores').select('id, nombre, codigo, activo').eq('producto_id', productoId)
   if (error) return 'Se guardó el producto, pero no los sabores. Probá de nuevo.'
   const porId = new Map(existentes.map(sabor => [sabor.id, sabor]))
@@ -93,6 +87,56 @@ export async function guardarProducto(id: string | null, formData: FormData) {
   const resultados = [...primeros, ...segundos]
   if (resultados.some(resultado => resultado?.error?.code === '23505')) return 'Se guardó el producto, pero algún nombre o código de sabor ya existe (puede ser uno sacado de la lista).'
   if (resultados.some(resultado => resultado?.error)) return 'Se guardó el producto, pero no todos los sabores. Probá de nuevo.'
+  return null
+}
+
+// Producto nuevo: marca, nombre, precios, costo y sabores.
+export async function crearProducto(formData: FormData) {
+  const marca = String(formData.get('marca') ?? '').trim().slice(0, 100)
+  const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
+  if (!marca) return 'Falta la marca.'
+  if (!nombre) return 'Falta el nombre del producto.'
+  const precios = leerPrecios(formData)
+  if ('error' in precios) return precios.error ?? 'Revisá los precios.'
+  const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
+  const problema = validarSabores(sabores)
+  if (problema) return problema
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('productos').insert({ marca, nombre, ...precios.datos }).select('id').single()
+  if (error?.code === '23505') return 'Ya existe un producto con esa marca y ese nombre.'
+  if (error) return 'No se pudo guardar el producto. Probá de nuevo.'
+  const errorSabores = await sincronizarSabores(supabase, data.id, sabores!)
+  revalidatePath('/')
+  return errorSabores
+}
+
+// Catálogo: marca, nombre y sabores (los precios y costos se editan en "Precios y costos").
+export async function guardarDatosProducto(id: string, formData: FormData) {
+  if (typeof id !== 'string' || !id) return 'No se encontró el producto.'
+  const marca = String(formData.get('marca') ?? '').trim().slice(0, 100)
+  const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
+  if (!marca) return 'Falta la marca.'
+  if (!nombre) return 'Falta el nombre del producto.'
+  const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
+  const problema = validarSabores(sabores)
+  if (problema) return problema
+  const supabase = await createClient()
+  const { error } = await supabase.from('productos').update({ marca, nombre }).eq('id', id).select('id').single()
+  if (error?.code === '23505') return 'Ya existe un producto con esa marca y ese nombre.'
+  if (error) return 'No se pudo guardar el producto. Probá de nuevo.'
+  const errorSabores = await sincronizarSabores(supabase, id, sabores!)
+  revalidatePath('/')
+  return errorSabores
+}
+
+// Precios y costos: efectivo, transferencia, promo x3, dólares y costo por unidad.
+export async function guardarPreciosProducto(id: string, formData: FormData) {
+  if (typeof id !== 'string' || !id) return 'No se encontró el producto.'
+  const precios = leerPrecios(formData)
+  if ('error' in precios) return precios.error ?? 'Revisá los precios.'
+  const supabase = await createClient()
+  const { error } = await supabase.from('productos').update(precios.datos).eq('id', id).select('id').single()
+  if (error) return 'No se pudieron guardar los precios. Probá de nuevo.'
   revalidatePath('/')
   return null
 }

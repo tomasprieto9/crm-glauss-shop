@@ -76,3 +76,101 @@ button { cursor: pointer; }
 @media (max-width:720px) { .costo-valores strong { font-size:17px; } }
 .sabores-editor { display:flex; flex-direction:column; gap:6px; }.sabor-fila { display:grid; grid-template-columns:118px minmax(0,1fr) 52px 28px; align-items:center; gap:8px; }.sabor-fila input { width:100%; min-height:38px; padding:0 10px; border:1px solid #e8e8e8; border-radius:8px; outline:0; color:#454545; background:#fff; font:inherit; font-size:12px; }.sabor-fila input:focus { border-color:#e0a2a7; box-shadow:0 0 0 3px #c8414a1c; }.sabor-fila > b { display:grid; height:26px; place-items:center; border-radius:99px; color:#fff; background:var(--tinta); font-size:11px; }.sabor-fila > b.agotado { background:var(--rojo); }.sabor-fila > b.sin-dato { color:#9a9a9a; background:var(--chip); font-size:9px; font-weight:600; }.sabor-encabezado small { color:#9a9a9a; font-size:10px; font-weight:700; }.sabor-encabezado em { font-style:normal; font-weight:400; }.agregar-sabor { width:auto !important; align-self:flex-start; margin-top:4px; }.agregar-sabor svg { width:14px; height:14px; }.sabores-fuera { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; }.sabores-fuera small { width:100%; color:#9a9a9a; font-size:10px; font-weight:400; }.sabores-fuera .filter-pill { padding:5px 10px; font-size:11px; }
 @media (max-width:720px) { .sabor-fila { grid-template-columns:86px minmax(0,1fr) 44px 26px; gap:6px; } }
+/* Letra más grande en tablas, filtros y listas (pedido de Tomás, oct 2026) */
+th { font-size:10.5px; }
+td { font-size:13px; }
+.venta-lista { margin-top:4px; font-size:11px; }
+.status-pill { font-size:11px; }
+.celda-codigo { font-size:12px !important; }
+.clients-table-head h2,.sales-table-top h2 { font-size:15px; }
+.clients-table-head p,.sales-table-top p { font-size:11.5px; }
+.filter-control,.search-control,.filter-control select,.search-control input,.result-count { font-size:12.5px; }
+.filter-pill { font-size:13px; }
+.text-link { font-size:11.5px; }
+.dato-faltante { font-size:11px; }
+.stock-resumen { font-size:13px; }
+.sabores-stock span { font-size:12px; }
+.sabores-stock b { font-size:11px; }
+.ingreso-sabor > span { font-size:12.5px; }
+.ingreso-sabor small { font-size:10.5px; }
+.ingreso-sabor input { font-size:13px; }
+.field,.field span { font-size:12px; }
+.field input,.field textarea,.field-input,.field select,.field input[type=date],.venta-linea select,.sabor-fila input { font-size:13px; }
+.celda-foto img { width:40px; height:48px; }
+.modal-nota { margin:0; }
+
+/* Stock: una fila por vaporizador que se despliega con sus sabores */
+.stock-card { overflow:clip; }
+.stock-productos tr.stock-producto { cursor:pointer; }
+.stock-productos tbody.stock-abierto tr.stock-producto { background:#fefafa; }
+.stock-productos tbody.stock-abierto tr.stock-producto td { border-top-color:#f0e4e5; }
+
+.celda-alertas .status-pill + .status-pill { margin-left:5px; }
+.cambios-pendientes { color:var(--rojo); font-weight:700; }
+.celda-desplegar { width:1%; text-align:right; }
+.desplegar { display:inline-flex; align-items:center; gap:5px; padding:7px 10px; border:1px solid #ebebeb; border-radius:8px; color:#5f5f5f; background:#fff; font-size:12px; font-weight:700; }
+.desplegar svg { width:15px; height:15px; transition:transform .15s ease; }
+.stock-abierto .desplegar { color:var(--rojo); border-color:#f0d6d8; }
+.stock-abierto .desplegar svg { transform:rotate(180deg); }
+.stock-productos tr.stock-detalle,.stock-productos tr.stock-detalle:hover { cursor:default; background:transparent; }
+.stock-productos tr.stock-detalle td { padding:4px 16px 16px; border-top:0; white-space:normal; color:#5f5f5f; background:#fefafa; }
+.stock-lista-sabores { overflow:hidden; border:1px solid #f0e4e5; border-radius:12px; background:#fff; }
+.stock-sabor { display:grid; grid-template-columns:minmax(170px,1fr) minmax(0,420px) 170px; align-items:center; gap:12px; padding:9px 14px; border-top:1px solid #f4f4f4; }
+.stock-sabor:first-child { border-top:0; }
+.stock-sabor.encabezado { padding-block:9px; color:#afafaf; background:#fafafa; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.stock-sabor.cambiado { background:#fff8f0; }
+.stock-sabor-nombre { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.stock-sabor-nombre strong { color:#393939; font-size:13.5px; }
+.stock-sabor-nombre small { color:#8a8a8a; font-size:11px; letter-spacing:.03em; }
+.stock-sabor-datos { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)) 96px; align-items:center; gap:8px; color:#7d7d7d; font-size:13px; }
+.stock-sabor-datos .status-pill { justify-self:start; white-space:nowrap; }
+.stock-actual { display:flex; flex-direction:column; align-items:flex-end; gap:3px; justify-self:end; text-align:right; }
+.stepper { display:inline-flex; align-items:center; overflow:hidden; border:1px solid #e3e3e3; border-radius:9px; background:#fff; }
+.stepper button { display:grid; place-items:center; width:38px; height:38px; padding:0; border:0; color:#393939; background:#f6f6f6; font-size:19px; font-weight:700; line-height:1; }
+@media (hover:hover) { .stepper button:hover:not(:disabled) { color:#fff; background:var(--rojo); } }
+.stepper button:active:not(:disabled) { color:#fff; background:var(--rojo); }
+.stepper button:disabled { opacity:.5; cursor:default; }
+.stepper input { width:58px; height:38px; padding:0 4px; border:0; border-inline:1px solid #e3e3e3; outline:0; color:var(--tinta); font:inherit; font-size:15px; font-weight:800; text-align:center; -moz-appearance:textfield; appearance:textfield; }
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button { margin:0; -webkit-appearance:none; }
+.stepper input:focus { background:#fffaf5; }
+.stock-diferencia { color:#b0611c; font-size:11px; font-weight:700; }
+.stock-ocultos { margin:10px 2px 0; }
+.stock-acciones { position:sticky; bottom:0; z-index:2; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; margin-top:12px; padding:10px 2px; background:#fefafa; }
+.stock-acciones p { margin:0; color:#6b6b6b; font-size:12.5px; }
+.stock-acciones .text-link { margin-left:4px; font-size:12.5px; }
+.stock-acciones.con-cambios { padding:12px 14px; border:1px solid #f3d9b8; border-radius:12px; background:#fff8f0; box-shadow:0 -6px 18px rgba(0,0,0,.06); }
+.stock-acciones .login-error { flex-basis:100%; margin:0; }
+.stock-botones { display:flex; gap:8px; margin-left:auto; }
+@media (max-width:1100px) {
+  .stock-sabor { grid-template-columns:minmax(140px,1fr) minmax(0,330px) 160px; }
+  .stock-sabor-datos { grid-template-columns:repeat(4, minmax(0,1fr)) 90px; gap:6px; }
+}
+@media (max-width:720px) {
+  th { font-size:10px; }
+  td { font-size:13.5px; }
+  .clients-table td::before,.dashboard-table td::before { font-size:10px; }
+  .venta-lista { font-size:11.5px; }
+  .products-page .stock-productos tr.stock-producto { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .stock-productos td.celda-desplegar { grid-column:1 / -1; width:auto; }
+  .stock-productos td.celda-alertas { flex-direction:row; flex-wrap:wrap; align-items:center; }
+  .stock-productos td.celda-alertas::before { flex-basis:100%; }
+  .celda-alertas .status-pill + .status-pill { margin-left:0; }
+  .desplegar { justify-content:center; width:100%; min-height:42px; font-size:13px; }
+  .products-page .stock-productos tr.stock-detalle { display:block; padding:0 10px 14px; border-top:0; background:#fefafa; }
+  .stock-productos tr.stock-detalle td { display:block; padding:0 !important; background:transparent; }
+  .stock-productos tr.stock-detalle td::before { display:none; }
+  .stock-sabor { grid-template-columns:minmax(0,1fr) auto; gap:6px 10px; padding:11px 12px; }
+  .stock-sabor.encabezado { display:none; }
+  .stock-sabor-nombre { grid-column:1; grid-row:1; }
+  .stock-sabor-datos { grid-column:1; grid-row:2; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; font-size:12px; }
+  .stock-sabor-datos span[data-label]::before { content:attr(data-label) " "; color:#afafaf; font-size:11px; }
+  .stock-sabor-datos .status-pill { padding:3px 8px; font-size:10.5px; }
+  .stock-actual { grid-column:2; grid-row:1 / span 2; }
+  .stepper button { width:40px; height:42px; }
+  .stepper input { width:52px; height:42px; }
+  .stock-acciones { margin-top:10px; }
+  .stock-acciones p,.stock-acciones .text-link { font-size:13px; }
+  .stock-botones { width:100%; }
+  .stock-botones button { flex:1; min-height:44px; }
+}
+.stock-sabor.encabezado .stock-sabor-datos { color:inherit; font-size:inherit; }
