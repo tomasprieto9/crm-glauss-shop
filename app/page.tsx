@@ -1,4 +1,5 @@
 import CrmApp from '@/components/crm-app'
+import type { Actividad } from '@/lib/actividad'
 import { vistaValida } from '@/lib/vistas'
 import type { Cliente } from '@/lib/clientes'
 import type { MovimientoCaja, SaldoCaja } from '@/lib/finanzas'
@@ -73,10 +74,17 @@ async function cargarConfiguracion(supabase: Supabase) {
   return data as Configuracion
 }
 
+// Lo último que se hizo en el CRM (sección Movimientos).
+async function cargarActividad(supabase: Supabase) {
+  const { data, error } = await supabase.from('actividad').select('id, fecha, usuario_email, tipo, accion, detalle').order('fecha', { ascending: false }).order('id', { ascending: false }).limit(FILAS_POR_CONSULTA)
+  if (error) throw new Error(`No se pudieron cargar los movimientos: ${error.message}`)
+  return data as Actividad[]
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ seccion?: string; cliente?: string }> }) {
   const { seccion, cliente } = await searchParams
   const supabase = await createClient()
   const { data } = await supabase.auth.getClaims()
-  const [clientes, ventas, productos, compras, configuracion, finanzas] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase), cargarFinanzas(supabase)])
-  return <CrmApp seccionInicial={vistaValida(seccion)} clienteInicial={typeof cliente === 'string' ? cliente : null} email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} />
+  const [clientes, ventas, productos, compras, configuracion, finanzas, actividad] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase), cargarFinanzas(supabase), cargarActividad(supabase)])
+  return <CrmApp seccionInicial={vistaValida(seccion)} clienteInicial={typeof cliente === 'string' ? cliente : null} email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} actividad={actividad} />
 }
