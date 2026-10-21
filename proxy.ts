@@ -38,6 +38,6 @@ function redirigir(request: NextRequest, response: NextResponse, pathname: strin
 }
 
 export const config = {
-  // Todo salvo los archivos internos de Next y las imágenes/íconos de /public.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
+  // Todo salvo los archivos internos de Next, el manifiesto de la app y las imágenes/íconos de /public.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 }

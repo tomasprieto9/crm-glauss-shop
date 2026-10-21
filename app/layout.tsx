@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     icon: [{ url: '/icon-32.png', sizes: '32x32', type: 'image/png' }, { url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
     apple: '/apple-icon.png',
   },
+  // En el iPhone, abierto desde la pantalla de inicio se ve como app (sin las barras de Safari).
+  appleWebApp: { capable: true, title: 'Glauss CRM', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {
