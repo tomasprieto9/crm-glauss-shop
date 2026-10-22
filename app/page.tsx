@@ -45,7 +45,8 @@ async function cargarProductos(supabase: Supabase) {
   for (const sabor of sabores.data as Sabor[]) porProducto.set(sabor.producto_id, [...(porProducto.get(sabor.producto_id) ?? []), sabor])
   return (productos.data as Omit<Producto, 'sabores'>[])
     .map(producto => ({ ...producto, sabores: (porProducto.get(producto.id) ?? []).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) }))
-    .sort((a, b) => a.marca.localeCompare(b.marca, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
+    // Como en el catálogo de Glauss: por cantidad de puffs; los que no son por puffs (THC) al final.
+    .sort((a, b) => (a.puffs ?? Infinity) - (b.puffs ?? Infinity) || a.marca.localeCompare(b.marca, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
 }
 
 async function cargarCompras(supabase: Supabase) {

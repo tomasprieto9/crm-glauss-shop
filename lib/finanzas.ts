@@ -88,3 +88,63 @@ export function calcularMes(mes: string, ventas: Venta[], movimientos: Movimient
     porCategoria: [...porCategoria.entries()].sort((a, b) => b[1] - a[1]),
   }
 }
+
+export type RepartoPersona = {
+  persona: Recibio
+  vendido: Record<MetodoPago, number>  // lo que cobró, en su moneda
+  generado: number                     // todo lo que cobró, en pesos
+  costo: number                        // costo de lo que vendió
+  egresos: number                      // egresos que pagó de su caja (gastos y mercadería), en pesos
+  retiros: number                      // lo que ya retiró como socio, en pesos
+  ganancia: number                     // su parte (50%)
+  porRetirar: number                   // su parte menos lo que ya retiró
+  rindeACaja: number                   // lo que cobró menos lo que pagó y menos su ganancia: vuelve a la caja del negocio
+}
+
+// Reparto de la ganancia 50 / 50 entre Lucas y Gonzalo, entre dos fechas (aaaa-mm-dd), como en la planilla de cierre.
+// Ganancia = todo lo vendido (efectivo, transferencia y dólares en pesos) - costo de lo vendido - gastos (sin mercadería).
+// Cada uno se lleva la mitad. Lo que cobró cada uno, menos lo que pagó de su caja y menos su ganancia, vuelve a la caja.
+export function calcularReparto(desde: string, hasta: string, ventas: Venta[], movimientos: MovimientoCaja[], productos: Producto[], cotizacion: number | null) {
+  const enPeriodo = (fecha: string) => (!desde || fecha >= desde) && (!hasta || fecha <= hasta)
+  const aPesos = (monto: number, medio: MetodoPago) => medio === 'dolares' ? monto * (cotizacion ?? 0) : monto
+  const costoUsd = new Map(productos.filter(producto => producto.costo_usd !== null).map(producto => [producto.id, producto.costo_usd!]))
+  const ventasPeriodo = ventas.filter(venta => enPeriodo(venta.fecha))
+  const movimientosPeriodo = movimientos.filter(movimiento => enPeriodo(movimiento.fecha))
+  let unidadesSinCosto = 0
+  const costoDe = (venta: Venta) => venta.venta_items.reduce((suma, item) => {
+    const costo = item.producto_id ? costoUsd.get(item.producto_id) : undefined
+    if (costo === undefined) { unidadesSinCosto += item.cantidad; return suma }
+    return suma + costo * item.cantidad * (cotizacion ?? 0)
+  }, 0)
+
+  const base = (Object.keys({ lucas: 0, gonzalo: 0 }) as Recibio[]).map(persona => {
+    const propias = ventasPeriodo.filter(venta => venta.recibio === persona)
+    const vendido = { efectivo: 0, transferencia: 0, dolares: 0 } as Record<MetodoPago, number>
+    for (const venta of propias) vendido[venta.metodo_pago] += venta.total
+    const egresos = movimientosPeriodo.filter(movimiento => movimiento.tipo === 'egreso' && movimiento.persona === persona)
+    return {
+      persona, vendido,
+      generado: propias.reduce((suma, venta) => suma + aPesos(venta.total, venta.metodo_pago), 0),
+      costo: propias.reduce((suma, venta) => suma + costoDe(venta), 0),
+      gastos: egresos.filter(egreso => egreso.categoria !== 'mercaderia').reduce((suma, egreso) => suma + aPesos(egreso.monto, egreso.medio), 0),
+      egresos: egresos.reduce((suma, egreso) => suma + aPesos(egreso.monto, egreso.medio), 0),
+      retiros: movimientosPeriodo.filter(movimiento => movimiento.tipo === 'retiro' && movimiento.persona === persona).reduce((suma, retiro) => suma + aPesos(retiro.monto, retiro.medio), 0),
+    }
+  })
+  const vendido = base.reduce((suma, persona) => suma + persona.generado, 0)
+  const costo = base.reduce((suma, persona) => suma + persona.costo, 0)
+  const gastos = base.reduce((suma, persona) => suma + persona.gastos, 0)
+  const ganancia = vendido - costo - gastos
+  const personas: RepartoPersona[] = base.map(({ gastos: _, ...persona }) => ({
+    ...persona,
+    ganancia: ganancia / 2,
+    porRetirar: ganancia / 2 - persona.retiros,
+    rindeACaja: persona.generado - persona.egresos - ganancia / 2,
+  }))
+  const usaDolares = ventasPeriodo.some(venta => venta.metodo_pago === 'dolares') || movimientosPeriodo.some(movimiento => movimiento.medio === 'dolares')
+  return {
+    vendido, costo, gastos, ganancia, personas, unidadesSinCosto,
+    rindeTotal: personas.reduce((suma, persona) => suma + persona.rindeACaja, 0),
+    faltaCotizacion: !cotizacion && (usaDolares || costo === 0 && ventasPeriodo.length > 0),
+  }
+}

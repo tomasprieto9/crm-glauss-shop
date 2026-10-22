@@ -21,6 +21,7 @@ export type Producto = {
   promo_x3: number | null // precio en pesos por 3 unidades del modelo
   foto_url: string | null
   costo_usd: number | null // costo por unidad; se actualiza con cada ingreso de mercadería
+  puffs: number | null // aspiradas; ordena los productos (sin dato = no es por puffs, va al final)
   created_at: string
   sabores: Sabor[]
 }

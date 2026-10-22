@@ -279,3 +279,36 @@ th { background:#fafafa; }
   .sale-modal footer,.new-client-modal footer,.new-sale-modal footer { padding:14px 18px 16px; border-radius:0 0 20px 20px; }
   .modal-body { padding:18px; }
 }
+
+/* Finanzas: reparto de ganancia 50 / 50 */
+.reparto-card { display:flex; flex-direction:column; gap:18px; margin-bottom:18px; padding:22px; }
+.reparto-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px; }
+.reparto-head h2 { font-size:17px; }
+.reparto-head p { margin:5px 0 0; color:#71717a; font-size:13px; }
+.reparto-periodo { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; }
+.reparto-periodo .field input { min-height:40px; padding:0 10px; }
+.reparto-cuenta { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; }
+.reparto-cuenta > div { display:flex; flex-direction:column; gap:4px; padding:12px 14px; border-radius:14px; background:#fafafa; }
+.reparto-cuenta span { color:#71717a; font-size:12.5px; }
+.reparto-cuenta strong { color:var(--tinta); font-family:var(--fuente-precio), sans-serif; font-size:18px; }
+.reparto-cuenta .reparto-total { background:#e9f8f2; }
+.reparto-cuenta .reparto-total strong { color:#1f6b50; font-size:21px; }
+.reparto-personas { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+.reparto-persona { padding:16px 18px; border:1px solid var(--linea); border-radius:16px; }
+.reparto-persona-head { display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:2px 10px; padding-bottom:12px; border-bottom:1px solid #f0f0f1; }
+.reparto-persona-head h3 { margin:0; color:var(--tinta); font-size:16px; }
+.reparto-persona-head span { grid-row:2; color:#71717a; font-size:12.5px; }
+.reparto-persona-head strong { grid-row:1 / span 2; grid-column:2; color:#1f6b50; font-family:var(--fuente-precio), sans-serif; font-size:24px; }
+.reparto-persona dl { display:grid; grid-template-columns:auto 1fr; gap:10px 12px; margin:12px 0 0; }
+.reparto-persona dt { color:#71717a; font-size:13px; }
+.reparto-persona dd { display:flex; flex-direction:column; align-items:flex-end; gap:2px; margin:0; color:#27272a; font-size:13.5px; text-align:right; }
+.reparto-persona dd small { color:#a1a1aa; font-size:11.5px; }
+.reparto-persona dd b { color:var(--tinta); font-size:14.5px; }
+.reparto-nota { margin:0; color:#71717a; font-size:12.5px; line-height:1.5; }
+@media (max-width:720px) {
+  .reparto-card { padding:16px; }
+  .reparto-periodo { width:100%; }
+  .reparto-periodo .field { flex:1 1 140px; }
+  .reparto-cuenta { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .reparto-personas { grid-template-columns:1fr; }
+}

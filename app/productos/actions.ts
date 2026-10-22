@@ -11,6 +11,13 @@ const leerPrecio = (formData: FormData, campo: string) => {
 }
 const precioValido = (precio: number | null) => precio === null || (Number.isFinite(precio) && precio >= 0 && precio <= 100_000_000)
 const redondear = (precio: number | null) => precio === null ? null : Math.round(precio * 100) / 100
+// Puffs del modelo: vacío = no es por puffs (THC). Devuelve undefined si el número no sirve.
+const leerPuffs = (formData: FormData) => {
+  const texto = String(formData.get('puffs') ?? '').trim().replace(/\./g, '')
+  if (texto === '') return null
+  const puffs = Number(texto)
+  return Number.isInteger(puffs) && puffs > 0 && puffs <= 1_000_000 ? puffs : undefined
+}
 
 type SaborEnviado = { id: string | null; codigo: string | null; nombre: string }
 type Supabase = Awaited<ReturnType<typeof createClient>>
@@ -99,13 +106,15 @@ export async function crearProducto(formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
   if (!marca) return 'Falta la marca.'
   if (!nombre) return 'Falta el nombre del producto.'
+  const puffs = leerPuffs(formData)
+  if (puffs === undefined) return 'Revisá los puffs: tiene que ser un número entero, ej. 15000.'
   const precios = leerPrecios(formData)
   if ('error' in precios) return precios.error ?? 'Revisá los precios.'
   const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
   const problema = validarSabores(sabores)
   if (problema) return problema
   const supabase = await createClient()
-  const { data, error } = await supabase.from('productos').insert({ marca, nombre, ...precios.datos }).select('id').single()
+  const { data, error } = await supabase.from('productos').insert({ marca, nombre, puffs, ...precios.datos }).select('id').single()
   if (error?.code === '23505') return 'Ya existe un producto con esa marca y ese nombre.'
   if (error) return 'No se pudo guardar el producto. Probá de nuevo.'
   const errorSabores = await sincronizarSabores(supabase, data.id, sabores!)
@@ -120,11 +129,13 @@ export async function guardarDatosProducto(id: string, formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim().slice(0, 200)
   if (!marca) return 'Falta la marca.'
   if (!nombre) return 'Falta el nombre del producto.'
+  const puffs = leerPuffs(formData)
+  if (puffs === undefined) return 'Revisá los puffs: tiene que ser un número entero, ej. 15000.'
   const sabores = leerSabores(String(formData.get('sabores') ?? '[]'))
   const problema = validarSabores(sabores)
   if (problema) return problema
   const supabase = await createClient()
-  const { error } = await supabase.from('productos').update({ marca, nombre }).eq('id', id).select('id').single()
+  const { error } = await supabase.from('productos').update({ marca, nombre, puffs }).eq('id', id).select('id').single()
   if (error?.code === '23505') return 'Ya existe un producto con esa marca y ese nombre.'
   if (error) return 'No se pudo guardar el producto. Probá de nuevo.'
   const errorSabores = await sincronizarSabores(supabase, id, sabores!)
