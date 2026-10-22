@@ -41,16 +41,17 @@ export type NuevoMovimiento = {
 export const saldoDe = (saldos: SaldoCaja[], persona: Recibio, medio: MetodoPago) =>
   saldos.filter(saldo => saldo.persona === persona && saldo.medio === medio).reduce((suma, saldo) => suma + Number(saldo.saldo), 0)
 
-// Números del mes (aaaa-mm) para Finanzas. Todo en pesos: los dólares se pasan con la cotización.
+// Números de un período (desde/hasta aaaa-mm-dd, vacío = sin límite) para Finanzas. Todo en pesos: los dólares se pasan con la cotización.
 // Ganancia real = lo vendido - el costo de lo vendido (costo en US$ de cada producto) - gastos.
 // Los egresos de categoría "mercadería" no cuentan como gasto: ya están en el costo de lo vendido.
-export function calcularMes(mes: string, ventas: Venta[], movimientos: MovimientoCaja[], productos: Producto[], cotizacion: number | null) {
+export function calcularPeriodo(desde: string, hasta: string, ventas: Venta[], movimientos: MovimientoCaja[], productos: Producto[], cotizacion: number | null) {
   const aPesos = (monto: number, medio: MetodoPago) => medio === 'dolares' ? (cotizacion ? monto * cotizacion : null) : monto
   const ultimoCosto = new Map<string, number>()
   for (const producto of productos) if (producto.costo_usd !== null) ultimoCosto.set(producto.id, producto.costo_usd)
 
-  const ventasMes = ventas.filter(venta => venta.fecha.startsWith(mes))
-  const movimientosMes = movimientos.filter(movimiento => movimiento.fecha.startsWith(mes))
+  const enPeriodo = (fecha: string) => (!desde || fecha >= desde) && (!hasta || fecha <= hasta)
+  const ventasMes = ventas.filter(venta => enPeriodo(venta.fecha))
+  const movimientosMes = movimientos.filter(movimiento => enPeriodo(movimiento.fecha))
   let faltaCotizacion = false
   const sumarEnPesos = (montos: { monto: number; medio: MetodoPago }[]) => montos.reduce((suma, { monto, medio }) => {
     const pesos = aPesos(monto, medio)

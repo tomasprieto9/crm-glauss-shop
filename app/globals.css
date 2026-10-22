@@ -312,3 +312,27 @@ th { background:#fafafa; }
   .reparto-cuenta { grid-template-columns:repeat(2, minmax(0,1fr)); }
   .reparto-personas { grid-template-columns:1fr; }
 }
+
+/* Campo de fecha dd/mm/aaaa (no depende del idioma del navegador) con botón de calendario */
+.campo-fecha { position:relative; display:flex; align-items:center; width:100%; min-height:40px; border:1px solid var(--linea); border-radius:12px; background:#fff; }
+.campo-fecha:focus-within { border-color:#a1a1aa; box-shadow:0 0 0 3px #f4f4f5; }
+.campo-fecha.invalida { border-color:var(--rojo); box-shadow:0 0 0 3px var(--rojo-suave); }
+.field .campo-fecha input.campo-fecha-texto,.campo-fecha input.campo-fecha-texto { flex:1; width:100%; min-width:0; min-height:38px; padding:0 0 0 11px; border:0; border-radius:12px; outline:0; box-shadow:none; color:#27272a; background:transparent; font:inherit; font-size:13px; font-variant-numeric:tabular-nums; }
+.campo-fecha-boton { display:grid; place-items:center; flex:0 0 38px; height:38px; color:#71717a; pointer-events:none; }
+.campo-fecha-boton svg { width:17px; height:17px; }
+.field .campo-fecha input.campo-fecha-nativo,.campo-fecha input.campo-fecha-nativo { position:absolute; top:0; right:0; bottom:0; width:40px; min-height:0; padding:0; border:0; opacity:0; cursor:pointer; }
+.campo-fecha:hover .campo-fecha-boton { color:#18181b; }
+
+/* Finanzas: un solo período para toda la sección */
+.periodo-finanzas { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 20px; margin:18px 0 16px; padding:18px 20px; }
+.periodo-titulo h2 { margin:0; color:var(--tinta); font-size:17px; }
+.periodo-titulo p { max-width:520px; margin:5px 0 0; color:#71717a; font-size:12.5px; line-height:1.45; }
+.periodo-controles { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px; }
+.periodo-controles .field { width:160px; }
+.periodo-finanzas .login-error { flex-basis:100%; margin:0; }
+@media (max-width:720px) {
+  .periodo-finanzas { padding:16px; }
+  .periodo-controles { width:100%; }
+  .periodo-controles .field { flex:1 1 140px; width:auto; }
+}
+.periodo-titulo h2 { font-family:var(--fuente-display), sans-serif; font-size:22px; text-transform:uppercase; }
