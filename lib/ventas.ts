@@ -69,7 +69,13 @@ export function calcularTotales(lineas: { producto: Producto; cantidad: number }
     const promo = metodo !== 'dolares' ? producto.promo_x3 : null
     return suma + (promo !== null ? Math.floor(u / 3) * promo + (u % 3) * precio : u * precio)
   }, 0)
-  return { faltaPrecio, sinPromo, unidades, totalLista }
+  // Precio por unidad de cada producto con su promo: la promo baja solo el precio del producto que la tiene.
+  const precioPorUnidad = new Map([...porProducto.entries()].map(([id, { producto, unidades: u }]) => {
+    const precio = precioSegunPago(producto, metodo) ?? 0
+    const promo = metodo !== 'dolares' ? producto.promo_x3 : null
+    return [id, (promo !== null ? Math.floor(u / 3) * promo + (u % 3) * precio : u * precio) / u]
+  }))
+  return { faltaPrecio, sinPromo, unidades, totalLista, precioPorUnidad }
 }
 
 // Importe con su moneda: las ventas en dólares se guardan en dólares, el resto en pesos.

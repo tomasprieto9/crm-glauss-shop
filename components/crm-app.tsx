@@ -681,8 +681,8 @@ function NuevaVentaModal({ venta, clientes, productos, onClose, onIrAProductos }
   const sugeridos = useMemo(() => busqueda.trim() ? filtrarClientes(clientes, { ...FILTROS_INICIALES, texto: busqueda }).slice(0, 5) : [], [clientes, busqueda])
   const marcas = useMemo(() => marcasDe(productos), [productos])
 
-  // Precios de lista según el medio de pago, con la promo x3 por modelo. Si se carga un total cobrado
-  // distinto, cada producto se ajusta en la misma proporción (igual que lo guarda la base).
+  // Precios de lista según el medio de pago, con la promo x3 solo en el producto que la tiene. Si se carga un
+  // total cobrado distinto, cada producto se ajusta en la misma proporción (igual que lo guarda la base).
   const importe = (valor: number) => formatearImporte(valor, metodoPago)
   const unidades = (linea: LineaVenta) => Number(linea.cantidad) || 0
   const precioLista = (linea: LineaVenta) => { const producto = productoPorId.get(linea.productoId); return producto ? precioSegunPago(producto, metodoPago) : null }
@@ -694,7 +694,7 @@ function NuevaVentaModal({ venta, clientes, productos, onClose, onIrAProductos }
   const promoAplicada = calculo.totalLista !== null ? calculo.sinPromo - calculo.totalLista : 0
   const ajustado = hayTotalManual && totalValido && totalCobrado !== calculo.totalLista
   const conPrecioAjustado = totalValido && (ajustado || promoAplicada > 0)
-  const precioVenta = (linea: LineaVenta) => !calculo.faltaPrecio && calculo.sinPromo > 0 ? redondear((precioLista(linea) ?? 0) * totalCobrado / calculo.sinPromo) : calculo.unidades ? redondear(totalCobrado / calculo.unidades) : 0
+  const precioVenta = (linea: LineaVenta) => !calculo.faltaPrecio && calculo.totalLista ? redondear((calculo.precioPorUnidad.get(linea.productoId) ?? 0) * totalCobrado / calculo.totalLista) : calculo.unidades ? redondear(totalCobrado / calculo.unidades) : 0
   // Stock disponible: al editar, lo que esta venta ya había descontado vuelve a estar disponible.
   const devueltoPorSabor = new Map<string, number>()
   for (const item of venta?.venta_items ?? []) if (item.sabor_id) devueltoPorSabor.set(item.sabor_id, (devueltoPorSabor.get(item.sabor_id) ?? 0) + item.cantidad)
