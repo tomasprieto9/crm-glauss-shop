@@ -1,4 +1,4 @@
-export const SEGMENTOS = { cliente: 'Cliente', no_compro: 'No compró', publicidad: 'Publicidad', comercio: 'Comercio', comercio_prospecto: 'Comercio (prospecto)' }
+export const SEGMENTOS = { cliente: 'Cliente', no_compro: 'No compró', publicidad: 'Publicidad', comercio: 'Comercio', comercio_prospecto: 'Comercio (prospecto)', sin_etiqueta: 'Sin etiqueta' }
 export const ZONAS = { la_plata: 'La Plata', amba: 'AMBA', interior: 'Interior', exterior: 'Exterior' }
 export const CONSENTIMIENTOS = { sin_definir: 'Sin definir', si: 'Sí', no: 'No' }
 export const ESTADOS_CAMPANA = { pendiente: 'Pendiente', escrito: 'Escrito', respondio: 'Respondió', compro: 'Compró', no_interesa: 'No le interesa' }
@@ -11,7 +11,7 @@ export type EstadoCampana = keyof typeof ESTADOS_CAMPANA
 export type Cliente = {
   id: string
   nombre: string
-  telefono: string
+  telefono: string | null  // algunos contactos están agendados sin teléfono
   segmento: Segmento
   zona: Zona | null
   notas: string | null
