@@ -206,3 +206,76 @@ td { font-size:13px; }
   .actividad-cuerpo strong { font-size:14.5px; }
   .actividad-cuerpo p { font-size:13.5px; }
 }
+
+/* Estética tipo Planer (oct 2026): menú gris sin bordes con íconos, contenido en un panel blanco redondeado,
+   modales y controles más redondeados. El rojo de Glauss queda para botones principales y títulos. */
+:root { --fondo-app:#f4f4f5; --linea:#e4e4e7; --gris-hover:#ebebed; --gris-activo:#e4e4e7; --texto-menu:#3f3f46; }
+body,.app-shell { background:var(--fondo-app); }
+.sidebar { width:250px; flex:0 0 250px; padding:22px 12px 14px; border-right:0; background:var(--fondo-app); position:sticky; top:0; height:100vh; min-height:0; overflow-y:auto; }
+.sidebar-top { margin-bottom:22px; padding:0 12px; }
+.brand-logo { width:132px; }
+.nav-list { gap:0; }
+.nav-grupo { display:flex; flex-direction:column; gap:2px; padding:10px 0; border-top:1px solid var(--linea); }
+.nav-grupo:first-child { padding-top:0; border-top:0; }
+.nav-item { gap:12px; padding:9px 12px; border-radius:10px; color:var(--texto-menu); font-size:14.5px; font-weight:500; transition:background .12s ease; }
+.nav-item svg { width:18px; height:18px; flex:0 0 18px; color:#71717a; stroke-width:1.7; }
+.nav-item:hover { background:var(--gris-hover); }
+.nav-item.active { color:#18181b; background:var(--gris-activo); font-weight:600; }
+.nav-item.active svg { color:#18181b; }
+.nav-count { min-width:22px; height:22px; padding:0 7px; border-radius:99px; color:var(--rojo); background:#fbe3e5; font-size:11px; font-weight:700; }
+.sidebar-bottom { gap:2px; padding-top:10px; border-top:1px solid var(--linea); }
+.profile { gap:11px; margin-top:8px; padding:12px 8px 2px; border-top:1px solid var(--linea); }
+.profile-avatar { flex:0 0 36px; width:36px; height:36px; border-radius:50%; color:#fff; background:var(--tinta); font-size:14px; font-weight:700; }
+.profile strong { color:#18181b; font-size:14px; }
+.logout-button { display:inline-flex; align-items:center; gap:5px; margin-top:2px; color:#71717a; font-size:12px; font-weight:500; }
+.logout-button svg { width:13px; height:13px; }
+.logout-button:hover { color:var(--rojo); text-decoration:none; }
+.main-content { min-height:calc(100vh - 20px); margin:10px 10px 10px 0; overflow:clip; border:1px solid var(--linea); border-radius:20px; background:#fff; }
+.topbar { height:62px; border-bottom:1px solid #f0f0f1; background:transparent; }
+.breadcrumbs { font-size:13px; color:#71717a; }
+.breadcrumbs strong { color:#18181b; font-weight:600; }
+.card,.metric-card { border-color:var(--linea); border-radius:18px; box-shadow:none; }
+th { background:#fafafa; }
+.clients-table tbody tr:hover { background:#fafafa; }
+.stock-productos tbody.stock-abierto tr.stock-producto,.stock-productos tr.stock-detalle td,.stock-acciones { background:#fafafa; }
+.stock-productos tbody.stock-abierto tr.stock-producto td { border-top-color:var(--linea); }
+.actividad-dia h2 { background:#fafafa; }
+
+/* Botones y campos */
+.quick-button { padding:10px 16px; border-radius:10px; box-shadow:none; font-size:13px; font-weight:600; }
+.quick-button:hover:not(:disabled) { filter:brightness(.95); }
+.outline-button,.cancel-button { border:1px solid var(--linea); border-radius:10px; color:#18181b; background:#fff; font-size:13px; font-weight:600; }
+.outline-button:hover:not(:disabled),.cancel-button:hover { background:#f8f8f8; }
+.heading-actions .outline-button { font-size:13px; }
+.filter-pill { border-color:var(--linea); border-radius:99px; color:#3f3f46; }
+.search-control,.filter-control { border-color:var(--linea); border-radius:12px; }
+.field input,.field textarea,.field select,.field-input,.venta-linea select,.sabor-fila input,.ingreso-sabor input,.new-client-modal .field input,.new-client-modal .field select,.new-client-modal .field textarea { border-color:var(--linea); border-radius:12px; }
+.field input:focus,.field textarea:focus,.field select:focus,.sabor-fila input:focus { border-color:#a1a1aa; box-shadow:0 0 0 3px #f4f4f5; outline:0; }
+.ingreso-sabor,.stock-lista-sabores { border-color:var(--linea); border-radius:14px; }
+.stepper { border-radius:12px; border-color:var(--linea); }
+
+/* Modales */
+.modal-backdrop { background:rgba(24,24,27,.38); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+.sale-modal { border:1px solid var(--linea); border-radius:24px; box-shadow:0 30px 80px rgba(0,0,0,.18); }
+.sale-modal header { padding:22px 26px 18px; border-bottom:1px solid #f0f0f1; }
+.sale-modal footer,.new-client-modal footer,.new-sale-modal footer { padding:16px 26px 20px; border-top:1px solid #f0f0f1; background:#fcfcfc; border-radius:0 0 24px 24px; }
+.modal-body { padding:22px 26px; }
+.close-button { width:34px; height:34px; border-radius:10px; color:#71717a; }
+.close-button:hover { color:#18181b; background:var(--gris-hover); }
+.sabor-fila .close-button,.venta-linea .close-button { width:30px; height:30px; }
+
+@media (max-width:1000px) {
+  .sidebar { width:215px; flex-basis:215px; }
+}
+@media (max-width:720px) {
+  .main-content { min-height:0; margin:0; border:0; border-radius:0; overflow:visible; }
+  .mobile-bar { background:#fff; border-bottom:1px solid var(--linea); }
+  .sidebar { position:fixed; height:auto; padding:18px 12px 14px; background:var(--fondo-app); }
+  .sidebar-top { margin-bottom:18px; padding:0 6px 0 12px; }
+  .nav-item { padding:11px 12px; font-size:15.5px; }
+  .modal-backdrop { padding:10px; }
+  .sale-modal { border-radius:20px; }
+  .sale-modal header { padding:18px 18px 14px; }
+  .sale-modal footer,.new-client-modal footer,.new-sale-modal footer { padding:14px 18px 16px; border-radius:0 0 20px 20px; }
+  .modal-body { padding:18px; }
+}

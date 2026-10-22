@@ -51,6 +51,9 @@ function leerPrecios(formData: FormData) {
   const costo = leerPrecio(formData, 'costo_usd')
   if (efectivo === null || transferencia === null) return { error: 'Faltan los precios en efectivo y transferencia.' }
   if (![efectivo, transferencia, usd, promo, costo].every(precioValido)) return { error: 'Revisá los precios y el costo.' }
+  // La promo es el precio de las 3 unidades juntas: si es menor que una sola, casi seguro faltan ceros.
+  if (promo !== null && promo <= efectivo) return { error: 'La promo x3 es el precio de las 3 unidades juntas: tiene que ser mayor que el precio de una. Revisá que no falten ceros.' }
+  if (promo !== null && promo >= 3 * transferencia) return { error: 'La promo x3 tiene que ser más barata que comprar 3 sueltos.' }
   return { datos: { precio_efectivo: redondear(efectivo), precio_transferencia: redondear(transferencia), precio_usd: redondear(usd), promo_x3: redondear(promo), costo_usd: redondear(costo) } }
 }
 
