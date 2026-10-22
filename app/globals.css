@@ -336,3 +336,5 @@ th { background:#fafafa; }
   .periodo-controles .field { flex:1 1 140px; width:auto; }
 }
 .periodo-titulo h2 { font-family:var(--fuente-display), sans-serif; font-size:22px; text-transform:uppercase; }
+/* Tarjetas de métricas: el título no se mete debajo del ícono (en el celular se cortaba) */
+.metric-title { display:block; padding-right:40px; line-height:1.3; }
