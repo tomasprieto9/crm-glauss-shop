@@ -338,3 +338,11 @@ th { background:#fafafa; }
 .periodo-titulo h2 { font-family:var(--fuente-display), sans-serif; font-size:22px; text-transform:uppercase; }
 /* Tarjetas de métricas: el título no se mete debajo del ícono (en el celular se cortaba) */
 .metric-title { display:block; padding-right:40px; line-height:1.3; }
+
+/* Buscador de cliente en la venta: muestra todas las coincidencias en una lista que se scrollea */
+.autocomplete-list { max-width:100%; padding:6px; border-color:var(--linea); border-radius:14px; }
+.autocomplete-cuenta { margin:2px 8px 6px; color:#71717a; font-size:12px; }
+.autocomplete-opciones { display:flex; flex-direction:column; max-height:300px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.autocomplete-list button { font-size:13px; border-radius:10px; }
+.autocomplete-list small { font-size:11.5px; }
+@media (max-width:720px) { .autocomplete-opciones { max-height:260px; } .autocomplete-list button { padding:11px 10px; font-size:14.5px; } }
