@@ -346,3 +346,17 @@ th { background:#fafafa; }
 .autocomplete-list button { font-size:13px; border-radius:10px; }
 .autocomplete-list small { font-size:11.5px; }
 @media (max-width:720px) { .autocomplete-opciones { max-height:260px; } .autocomplete-list button { padding:11px 10px; font-size:14.5px; } }
+
+/* Ventas: el total de cada venta, a la vista al lado de los productos */
+.sales-table .celda-total-venta { text-align:right; white-space:nowrap; }
+.sales-table td.celda-total-venta strong { color:var(--tinta); font-family:var(--fuente-precio), sans-serif; font-size:15px; }
+.sales-table td[data-label="Productos y precio de venta"] { white-space:normal; min-width:260px; }
+@media (max-width:720px) {
+  .sales-table .celda-total-venta { text-align:left; }
+  .sales-table td.celda-total-venta strong { font-size:17px; }
+}
+.sales-table td[data-label="Cliente"],.sales-table td[data-label="Cargó"] { white-space:normal; min-width:110px; }
+.sales-table td[data-label="Productos y precio de venta"] { min-width:240px; }
+.sales-table th,.sales-table td { padding-inline:12px; }
+.sales-table .venta-items-celda span { white-space:normal; }
+.sales-table .venta-items-celda b,.sales-table .venta-items-celda s { white-space:nowrap; }
