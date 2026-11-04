@@ -22,22 +22,6 @@ const ClientesContext = createContext<Cliente[]>([])
 
 
 
-type Client = { id: number; first: string; last: string; phone: string; lastPurchase: string; purchases: number; spent: number; status: 'Activo' | 'A reactivar' }
-
-const initialClients: Client[] = [
-  { id: 1, first: 'Marina', last: 'Costa', phone: '+54 9 221 555-0182', lastPurchase: '14/05/2024', purchases: 8, spent: 286400, status: 'Activo' },
-  { id: 2, first: 'Rafael', last: 'Mendes', phone: '+54 9 221 555-1430', lastPurchase: '11/05/2024', purchases: 5, spent: 142900, status: 'Activo' },
-  { id: 3, first: 'Bianca', last: 'Nunes', phone: '+54 9 221 555-2291', lastPurchase: '08/05/2024', purchases: 6, spent: 198700, status: 'Activo' },
-  { id: 4, first: 'Lucas', last: 'Almeida', phone: '+54 9 221 555-3902', lastPurchase: '30/04/2024', purchases: 3, spent: 89500, status: 'Activo' },
-  { id: 5, first: 'Sofía', last: 'Romero', phone: '+54 9 221 555-4450', lastPurchase: '25/04/2024', purchases: 4, spent: 156200, status: 'Activo' },
-  { id: 6, first: 'Tomás', last: 'Herrera', phone: '+54 9 221 555-5599', lastPurchase: '19/04/2024', purchases: 2, spent: 79600, status: 'A reactivar' },
-  { id: 7, first: 'Carla', last: 'Benítez', phone: '+54 9 221 555-6133', lastPurchase: '12/04/2024', purchases: 7, spent: 231400, status: 'Activo' },
-  { id: 8, first: 'Nicolás', last: 'Suárez', phone: '+54 9 221 555-7021', lastPurchase: '03/04/2024', purchases: 2, spent: 49800, status: 'A reactivar' },
-  { id: 9, first: 'Valentina', last: 'Díaz', phone: '+54 9 221 555-8110', lastPurchase: '27/03/2024', purchases: 5, spent: 174600, status: 'A reactivar' },
-  { id: 10, first: 'Martín', last: 'Acosta', phone: '+54 9 221 555-9345', lastPurchase: '18/03/2024', purchases: 3, spent: 83700, status: 'A reactivar' },
-  { id: 11, first: 'Julia', last: 'Paz', phone: '+54 9 221 555-1044', lastPurchase: '09/03/2024', purchases: 4, spent: 119400, status: 'A reactivar' },
-  { id: 12, first: 'Franco', last: 'Molina', phone: '+54 9 221 555-1188', lastPurchase: '26/02/2024', purchases: 1, spent: 47600, status: 'A reactivar' },
-]
 
 const money = (value: number) => `${value < 0 ? '−' : ''}$ ${Math.abs(value).toLocaleString('es-AR')}`
 const numero = (value: number) => value.toLocaleString('es-AR')
@@ -85,7 +69,7 @@ function Vistas({ seccionInicial, clienteInicial, clientes, ventas, productos, c
   if (seleccionado) return <FichaCliente key={seleccionado.id} cliente={seleccionado} ventas={ventas} onBack={() => setSeleccionadoId(null)} onNavigate={navegar} />
   if (view === 'dashboard') return <Dashboard ventas={ventas} movimientos={movimientos} clientes={clientes} productos={productos} cotizacion={configuracion.cotizacion_usd} onNavigate={navegar} />
   if (view === 'ventas') return <Sales ventas={ventas} clientes={clientes} productos={productos} onNavigate={navegar} />
-  if (view === 'reactivacion') return <Reactivation clients={initialClients} onNavigate={navegar} />
+  if (view === 'reactivacion') return <Reactivation onNavigate={navegar} />
   if (view === 'productos') return <Products productos={productos} compras={compras} configuracion={configuracion} onNavigate={navegar} />
   if (view === 'finanzas') return <Finance ventas={ventas} movimientos={movimientos} saldos={saldos} productos={productos} cotizacion={configuracion.cotizacion_usd} onNavigate={navegar} />
   if (view === 'movimientos') return <Movimientos actividad={actividad} onNavigate={navegar} />
@@ -559,20 +543,8 @@ function Movimientos({ actividad, onNavigate }: { actividad: Actividad[]; onNavi
 
 function Reports({ onNavigate }: { onNavigate: (view: Vista) => void }) { return <SeccionVacia active="Reportes" breadcrumb="Reportes" eyebrow="ANÁLISIS DEL NEGOCIO" title="Reportes" subtitle="Entendé qué se vende y cómo evoluciona tu tienda." mensaje="Los reportes se arman en la próxima etapa, con las ventas que se vayan cargando." onNavigate={onNavigate} /> }
 
-function Reactivation({ clients, onNavigate }: { clients: Client[]; onNavigate: (view: Vista) => void }) {
-  const [threshold, setThreshold] = useState(30)
-  const reference = new Date('2024-06-20T12:00:00')
-  const rows = clients.map((client, index) => {
-    const [day, month, year] = client.lastPurchase.split('/').map(Number)
-    const date = new Date(year, month - 1, day)
-    const days = Math.max(31, Math.floor((reference.getTime() - date.getTime()) / 86400000) + index * 2)
-    return { client, days, product: ['Pod menta + líquido 30ml', 'Líquido frutilla x2', 'Resistencia 0.8Ω + pod', 'Líquido sandía 60ml'][index % 4] }
-  }).filter(row => row.days >= threshold).sort((a, b) => b.days - a.days)
-  const potential = rows.reduce((sum, row) => sum + row.client.spent / Math.max(row.client.purchases, 1), 0)
-  const whatsapp = (row: typeof rows[number]) => `https://wa.me/${row.client.phone.replace(/\\D/g, '')}?text=${encodeURIComponent(`Hola ${row.client.first}! Tenemos novedades en Glauss 🌬️`)}`
-  return <main className="app-shell"><Sidebar active="Reactivación" onNavigate={onNavigate} /><section className="main-content"><header className="topbar"><div className="breadcrumbs"><span>Glauss Shop</span><span>/</span><strong>Reactivación</strong></div></header><div className="content-wrap reactivation-page"><div className="page-heading"><div><p className="eyebrow">RECUPERÁ CLIENTES</p><h1>Reactivación</h1><p className="heading-subtitle">Clientes que no compran hace más de 30 días</p></div></div><div className="metrics-grid reactivation-metrics"><Metric icon={<span className="metric-dot orange" />} label="Total a reactivar" value={rows.length.toString()} tone="peach" /><Metric icon={<span className="metric-dot purple" />} label="Facturación potencial recuperable" value={money(Math.round(potential))} tone="purple" /></div><div className="reactivation-toolbar"><div className="filter-pills" role="group" aria-label="Filtrar por antigüedad">{[30, 45, 60, 90].map(days => <button key={days} className={threshold === days ? 'filter-pill selected' : 'filter-pill'} onClick={() => setThreshold(days)}>{days}+</button>)}</div><span className="result-count">{rows.length} clientes</span></div><div className="card clients-table-card reactivation-table-card"><div className="clients-table-head"><div><h2>Clientes para contactar</h2><p>Ordenados por tiempo desde la última compra</p></div></div><div className="sales-table-wrap"><table className="clients-table reactivation-table"><thead><tr><th>Nombre y apellido</th><th>Teléfono</th><th>Última compra</th><th>Días sin comprar</th><th>Qué compró la última vez</th><th>Total histórico gastado</th><th></th></tr></thead><tbody>{rows.map(row => <tr key={row.client.id}><td><strong>{row.client.first} {row.client.last}</strong></td><td>{row.client.phone}</td><td>{row.client.lastPurchase}</td><td><span className={`days-pill ${row.days >= 90 ? 'danger' : 'warning'}`}>{row.days} días</span></td><td>{row.product}</td><td><strong>{money(row.client.spent)}</strong></td><td><a className="contact-whatsapp" href={whatsapp(row)} target="_blank" rel="noreferrer"><Phone /> Contactar por WhatsApp</a></td></tr>)}</tbody></table></div></div></div></section></main>
-}
-
+// Reactivación por WhatsApp: se arma más adelante (por ahora sin datos de ejemplo).
+function Reactivation({ onNavigate }: { onNavigate: (view: Vista) => void }) { return <SeccionVacia active="Reactivación" breadcrumb="Reactivación" eyebrow="CAMPAÑAS" title="Reactivación" subtitle="Volver a contactar a los clientes que hace tiempo no compran." mensaje="Todavía no hay campañas de reactivación cargadas." onNavigate={onNavigate} /> }
 function filtrarClientes(clientes: Cliente[], { texto, segmento, zona }: Filtros) {
   const buscado = normalizar(texto.trim())
   const digitos = texto.replace(/\D/g, '')
