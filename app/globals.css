@@ -360,3 +360,18 @@ th { background:#fafafa; }
 .sales-table th,.sales-table td { padding-inline:12px; }
 .sales-table .venta-items-celda span { white-space:normal; }
 .sales-table .venta-items-celda b,.sales-table .venta-items-celda s { white-space:nowrap; }
+/* Productos ocultos: botón en la card, aviso y acceso a la lista de ocultos */
+.producto-card { position:relative; }
+.producto-acciones { display:flex; gap:8px; }
+.producto-acciones .producto-editar { flex:1; width:auto; }
+.producto-acciones .producto-ocultar { width:auto; padding-inline:16px; display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:none; white-space:nowrap; }
+.producto-ocultar svg,.boton-ocultos svg,.badge-oculto svg { width:14px; height:14px; flex:none; }
+.boton-ocultos { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer; }
+.producto-oculto .producto-top,.producto-oculto .producto-stock { opacity:.55; }
+.badge-oculto { position:absolute; top:12px; right:12px; z-index:1; display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:99px; color:#fff; background:#6b6b6b; font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.aviso-ocultos { margin:-4px 0 14px; padding:10px 14px; border-radius:12px; color:#555; background:#f3f3f3; font-size:12px; line-height:1.45; }
+.producto-card .login-error { margin:0; }
+@media (max-width:420px) {
+  .producto-acciones { flex-direction:column; }
+  .producto-acciones .producto-ocultar,.producto-acciones .producto-editar { width:100%; }
+}

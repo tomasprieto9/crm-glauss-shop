@@ -174,6 +174,18 @@ export async function registrarCompra(compra: NuevaCompra) {
   })
   if (error?.code === 'P0001') return error.message
   if (error) return 'No se pudo registrar el ingreso. Probá de nuevo.'
+  // Si el producto estaba oculto, al entrar mercadería vuelve a mostrarse.
+  await supabase.from('productos').update({ oculto: false }).eq('id', compra.productoId).eq('oculto', true)
+  revalidatePath('/')
+  return null
+}
+
+// Oculta un producto de las listas (sin borrarlo) o lo vuelve a mostrar.
+export async function ocultarProducto(id: string, oculto: boolean) {
+  if (typeof id !== 'string' || !id || typeof oculto !== 'boolean') return 'No se encontró el producto.'
+  const supabase = await createClient()
+  const { error } = await supabase.from('productos').update({ oculto }).eq('id', id).select('id').single()
+  if (error) return oculto ? 'No se pudo ocultar el producto. Probá de nuevo.' : 'No se pudo volver a mostrar el producto. Probá de nuevo.'
   revalidatePath('/')
   return null
 }

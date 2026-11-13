@@ -22,6 +22,7 @@ export type Producto = {
   foto_url: string | null
   costo_usd: number | null // costo por unidad; se actualiza con cada ingreso de mercadería
   puffs: number | null // aspiradas; ordena los productos (sin dato = no es por puffs, va al final)
+  oculto: boolean // oculto de las listas (sin stock y quizás no vuelva); se muestra solo al entrar mercadería
   created_at: string
   sabores: Sabor[]
 }
