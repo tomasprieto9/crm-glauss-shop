@@ -389,3 +389,11 @@ th { background:#fafafa; }
   .sales-table .venta-items-celda span { display:block; padding:9px 12px; border-radius:12px; color:var(--tinta); background:#f3f3f3; font-size:15px; font-weight:600; line-height:1.35; }
   .sales-table .venta-items-celda b { color:var(--tinta); font-weight:800; }
 }
+/* Borrar venta (en el modal de editar) */
+.borrar-venta { display:inline-flex; align-items:center; gap:6px; margin-right:auto; padding:9px 4px; border:0; color:var(--rojo); background:none; font-size:13px; font-weight:700; cursor:pointer; }
+.borrar-venta svg { width:15px; height:15px; }
+.borrar-venta-confirmar { display:flex; flex:1 1 100%; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 14px; padding:12px 14px; border-radius:12px; background:var(--rojo-suave); }
+.borrar-venta-confirmar p { flex:1 1 260px; margin:0; color:var(--rojo); font-size:13px; font-weight:600; line-height:1.4; }
+.borrar-venta-confirmar > div { display:flex; gap:8px; margin-left:auto; }
+.borrar-venta-si { padding:10px 16px; border:0; border-radius:10px; color:#fff; background:var(--rojo); font-size:13px; font-weight:700; cursor:pointer; }
+.borrar-venta-si:disabled,.borrar-venta:disabled { opacity:.5; cursor:not-allowed; }

@@ -73,3 +73,14 @@ export async function editarVenta(ventaId: string, venta: NuevaVenta) {
   if ('error' in validada) return validada.error ?? 'Revisá la venta.'
   return guardar('editar_venta', { p_venta_id: ventaId, ...validada.parametros })
 }
+
+// Borra una venta cargada por error: las unidades vuelven al stock y el cobro sale de la caja.
+export async function borrarVenta(ventaId: string) {
+  if (typeof ventaId !== 'string' || !ventaId) return 'No se encontró la venta.'
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('borrar_venta', { p_venta_id: ventaId })
+  if (error?.code === 'P0001') return error.message
+  if (error) return 'No se pudo borrar la venta. Probá de nuevo.'
+  revalidatePath('/')
+  return null
+}
