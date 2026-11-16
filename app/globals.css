@@ -385,4 +385,7 @@ th { background:#fafafa; }
   .sales-table td[data-label="N°"] { position:absolute; top:16px; right:18px; }
   .sales-table td[data-label="N°"]::before { display:none; }
   .sales-table td[data-label="N°"] strong { padding:3px 9px; border-radius:99px; color:#6b6b6b; background:#f3f3f3; font-size:12px; }
+  .sales-table td[data-label="Productos y precio de venta"] .venta-items-celda { gap:6px; width:100%; }
+  .sales-table .venta-items-celda span { display:block; padding:9px 12px; border-radius:12px; color:var(--tinta); background:#f3f3f3; font-size:15px; font-weight:600; line-height:1.35; }
+  .sales-table .venta-items-celda b { color:var(--tinta); font-weight:800; }
 }
