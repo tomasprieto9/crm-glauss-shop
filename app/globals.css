@@ -375,3 +375,14 @@ th { background:#fafafa; }
   .producto-acciones { flex-direction:column; }
   .producto-acciones .producto-ocultar,.producto-acciones .producto-editar { width:100%; }
 }
+/* Ventas: el nombre del cliente se tiene que encontrar rápido */
+.sales-table td[data-label="Cliente"] strong { color:var(--tinta); font-weight:800; }
+@media (max-width:720px) {
+  .sales-table tr { position:relative; }
+  .sales-table td[data-label="Cliente"] { order:-1; grid-column:1 / -1; padding-right:64px !important; }
+  .sales-table td[data-label="Cliente"]::before { display:none; }
+  .sales-table td[data-label="Cliente"] strong { font-size:19px; line-height:1.2; letter-spacing:-.01em; }
+  .sales-table td[data-label="N°"] { position:absolute; top:16px; right:18px; }
+  .sales-table td[data-label="N°"]::before { display:none; }
+  .sales-table td[data-label="N°"] strong { padding:3px 9px; border-radius:99px; color:#6b6b6b; background:#f3f3f3; font-size:12px; }
+}
