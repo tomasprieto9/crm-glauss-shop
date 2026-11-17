@@ -397,3 +397,8 @@ th { background:#fafafa; }
 .borrar-venta-confirmar > div { display:flex; gap:8px; margin-left:auto; }
 .borrar-venta-si { padding:10px 16px; border:0; border-radius:10px; color:#fff; background:var(--rojo); font-size:13px; font-weight:700; cursor:pointer; }
 .borrar-venta-si:disabled,.borrar-venta:disabled { opacity:.5; cursor:not-allowed; }
+/* Productos y stock: el nombre del vape se tiene que encontrar rápido (Stock y Precios y costos) */
+.stock-productos td.celda-principal strong,.precios-tabla td.celda-principal strong { color:var(--tinta); font-size:15px; font-weight:800; letter-spacing:-.01em; }
+@media (max-width:720px) {
+  .stock-productos td.celda-principal strong,.precios-tabla td.celda-principal strong { font-size:19px; line-height:1.2; }
+}
