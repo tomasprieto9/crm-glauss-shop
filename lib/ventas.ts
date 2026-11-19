@@ -15,6 +15,7 @@ export type ItemVendido = {
   precio_lista: number | null
   precio_unitario: number
   subtotal: number
+  costo_usd: number | null  // costo de mercadería al momento de la venta
   productos: { marca: string; nombre: string } | null
 }
 
@@ -27,6 +28,7 @@ export type Venta = {
   recibio: Recibio
   total: number
   total_lista: number | null
+  cotizacion_usd: number | null  // dólar del día de la venta
   created_at: string
   cargada_por_email: string | null
   editada_por_email: string | null

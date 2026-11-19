@@ -2,7 +2,7 @@ import CrmApp from '@/components/crm-app'
 import type { Actividad } from '@/lib/actividad'
 import { vistaValida } from '@/lib/vistas'
 import type { Cliente } from '@/lib/clientes'
-import type { MovimientoCaja, SaldoCaja } from '@/lib/finanzas'
+import type { Cierre, MovimientoCaja, SaldoCaja } from '@/lib/finanzas'
 import type { Compra, Configuracion, Producto, Sabor } from '@/lib/productos'
 import { createClient } from '@/lib/supabase/server'
 import type { Venta } from '@/lib/ventas'
@@ -26,7 +26,7 @@ async function cargarClientes(supabase: Supabase) {
 async function cargarVentas(supabase: Supabase) {
   const { data, error } = await supabase
     .from('ventas')
-    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, created_at, cargada_por_email, editada_por_email, editada_en, clientes(nombre), venta_items(id, producto_id, sabor_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, productos(marca, nombre))')
+    .select('id, numero, cliente_id, fecha, metodo_pago, recibio, total, total_lista, cotizacion_usd, created_at, cargada_por_email, editada_por_email, editada_en, clientes(nombre), venta_items(id, producto_id, sabor_id, descripcion, cantidad, precio_lista, precio_unitario, subtotal, costo_usd, productos(marca, nombre))')
     .order('numero', { ascending: false })
     .limit(FILAS_POR_CONSULTA)
   if (error) throw new Error(`No se pudieron cargar las ventas: ${error.message}`)
@@ -60,13 +60,15 @@ async function cargarCompras(supabase: Supabase) {
 }
 
 async function cargarFinanzas(supabase: Supabase) {
-  const [movimientos, saldos] = await Promise.all([
+  const [movimientos, saldos, cierres] = await Promise.all([
     supabase.from('movimientos_caja').select('*').order('numero', { ascending: false }).limit(FILAS_POR_CONSULTA),
     supabase.from('saldos_caja').select('persona, medio, saldo'),
+    supabase.from('cierres_caja').select('id, numero, cotizacion_usd, datos, cerrado_por_email, created_at').order('created_at', { ascending: false }).limit(200),
   ])
   if (movimientos.error) throw new Error(`No se pudieron cargar los movimientos de caja: ${movimientos.error.message}`)
   if (saldos.error) throw new Error(`No se pudieron cargar los saldos de caja: ${saldos.error.message}`)
-  return { movimientos: movimientos.data as MovimientoCaja[], saldos: saldos.data as SaldoCaja[] }
+  if (cierres.error) throw new Error(`No se pudieron cargar los cierres de caja: ${cierres.error.message}`)
+  return { movimientos: movimientos.data as MovimientoCaja[], saldos: saldos.data as SaldoCaja[], cierres: cierres.data as Cierre[] }
 }
 
 async function cargarConfiguracion(supabase: Supabase) {
@@ -87,5 +89,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const supabase = await createClient()
   const { data } = await supabase.auth.getClaims()
   const [clientes, ventas, productos, compras, configuracion, finanzas, actividad] = await Promise.all([cargarClientes(supabase), cargarVentas(supabase), cargarProductos(supabase), cargarCompras(supabase), cargarConfiguracion(supabase), cargarFinanzas(supabase), cargarActividad(supabase)])
-  return <CrmApp seccionInicial={vistaValida(seccion)} clienteInicial={typeof cliente === 'string' ? cliente : null} email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} actividad={actividad} />
+  return <CrmApp seccionInicial={vistaValida(seccion)} clienteInicial={typeof cliente === 'string' ? cliente : null} email={data?.claims.email ?? ''} clientes={clientes} ventas={ventas} productos={productos} compras={compras} configuracion={configuracion} movimientos={finanzas.movimientos} saldos={finanzas.saldos} cierres={finanzas.cierres} actividad={actividad} />
 }
