@@ -65,6 +65,38 @@ export async function registrarPaseEntreSocios(pase: { fecha: string; persona: s
   return null
 }
 
+// Compra de dólares con pesos dentro de una misma caja, sin separar efectivo y transferencia: los pesos salen
+// primero del efectivo y lo que falta de la transferencia. Si salen de los dos, se guardan dos pases (los dólares se
+// reparten en proporción) y quedan juntos en la lista.
+export async function registrarPesosADolares(cambio: { fecha: string; caja: string; pesos: number; dolares: number; descripcion: string }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cambio.fecha) || cambio.fecha > hoyEnArgentina()) return 'Revisá la fecha: no puede ser posterior a hoy.'
+  if (!Object.hasOwn(CAJAS, cambio.caja)) return 'Elegí la caja.'
+  if (!montoValido(cambio.pesos)) return 'Revisá cuántos pesos salen.'
+  if (!montoValido(cambio.dolares)) return 'Revisá cuántos dólares entran.'
+  const supabase = await createClient()
+  const { data: saldos, error: errorSaldos } = await supabase.from('saldos_caja').select('medio, saldo').eq('persona', cambio.caja)
+  if (errorSaldos) return 'No se pudo registrar. Probá de nuevo.'
+  const saldo = (medio: string) => Math.max(0, Number(saldos.find(fila => fila.medio === medio)?.saldo ?? 0))
+  const pesos = redondear(cambio.pesos)
+  const delEfectivo = redondear(Math.min(pesos, saldo('efectivo')))
+  const deTransferencia = redondear(pesos - delEfectivo)
+  if (deTransferencia > saldo('transferencia') + 0.005) return `En la caja hay ${(saldo('efectivo') + saldo('transferencia')).toLocaleString('es-AR')} pesos: no alcanza.`
+  const dolares = redondear(cambio.dolares)
+  const dolaresDelEfectivo = deTransferencia > 0 ? redondear(dolares * delEfectivo / pesos) : dolares
+  const descripcion = String(cambio.descripcion ?? '').trim().slice(0, 300) || 'Compra de dólares'
+  const filas = [
+    { medio: 'efectivo', monto: delEfectivo, llegan: dolaresDelEfectivo },
+    { medio: 'transferencia', monto: deTransferencia, llegan: redondear(dolares - dolaresDelEfectivo) },
+  ].filter(fila => fila.monto > 0).map(fila => ({
+    tipo: 'pase', fecha: cambio.fecha, persona: cambio.caja, medio: fila.medio, monto: fila.monto,
+    destino_persona: cambio.caja, destino_medio: 'dolares', monto_destino: fila.llegan, descripcion,
+  }))
+  const { error } = await supabase.from('movimientos_caja').insert(filas)
+  if (error) return 'No se pudo registrar. Probá de nuevo.'
+  revalidatePath('/')
+  return null
+}
+
 export async function borrarMovimiento(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase.from('movimientos_caja').delete().eq('id', id).select('id')
