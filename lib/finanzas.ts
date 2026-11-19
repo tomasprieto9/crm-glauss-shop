@@ -97,14 +97,17 @@ export type RepartoPersona = {
   costo: number                        // costo de lo que vendió
   egresos: number                      // egresos que pagó de su caja (gastos y mercadería), en pesos
   retiros: number                      // lo que ya retiró como socio, en pesos
+  pasesEnviados: number                // lo que le pasó al otro socio, en pesos
+  pasesRecibidos: number               // lo que recibió del otro socio, en pesos
   ganancia: number                     // su parte (50%)
   porRetirar: number                   // su parte menos lo que ya retiró
-  rindeACaja: number                   // lo que cobró menos lo que pagó y menos su ganancia: vuelve a la caja del negocio
+  rindeACaja: number                   // lo que cobró − lo que pagó − lo que le pasó al otro + lo que recibió del otro − su ganancia: vuelve a la caja del negocio
 }
 
 // Reparto de la ganancia 50 / 50 entre Lucas y Gonzalo, entre dos fechas (aaaa-mm-dd), como en la planilla de cierre.
 // Ganancia = todo lo vendido (efectivo, transferencia y dólares en pesos) - costo de lo vendido - gastos (sin mercadería).
-// Cada uno se lleva la mitad. Lo que cobró cada uno, menos lo que pagó de su caja y menos su ganancia, vuelve a la caja.
+// Cada uno se lleva la mitad. Lo que cobró cada uno, menos lo que pagó de su caja, menos lo que le pasó al otro socio,
+// más lo que recibió de él y menos su ganancia, vuelve a la caja. (Los pases entre cajas de la misma persona no cambian nada.)
 export function calcularReparto(desde: string, hasta: string, ventas: Venta[], movimientos: MovimientoCaja[], productos: Producto[], cotizacion: number | null) {
   const enPeriodo = (fecha: string) => (!desde || fecha >= desde) && (!hasta || fecha <= hasta)
   const aPesos = (monto: number, medio: MetodoPago) => medio === 'dolares' ? monto * (cotizacion ?? 0) : monto
@@ -118,6 +121,7 @@ export function calcularReparto(desde: string, hasta: string, ventas: Venta[], m
     return suma + costo * item.cantidad * (cotizacion ?? 0)
   }, 0)
 
+  const pasesEntreSocios = movimientosPeriodo.filter(movimiento => movimiento.tipo === 'pase' && movimiento.destino_persona !== null && movimiento.destino_persona !== movimiento.persona)
   const base = (Object.keys({ lucas: 0, gonzalo: 0 }) as Recibio[]).map(persona => {
     const propias = ventasPeriodo.filter(venta => venta.recibio === persona)
     const vendido = { efectivo: 0, transferencia: 0, dolares: 0 } as Record<MetodoPago, number>
@@ -130,6 +134,8 @@ export function calcularReparto(desde: string, hasta: string, ventas: Venta[], m
       gastos: egresos.filter(egreso => egreso.categoria !== 'mercaderia').reduce((suma, egreso) => suma + aPesos(egreso.monto, egreso.medio), 0),
       egresos: egresos.reduce((suma, egreso) => suma + aPesos(egreso.monto, egreso.medio), 0),
       retiros: movimientosPeriodo.filter(movimiento => movimiento.tipo === 'retiro' && movimiento.persona === persona).reduce((suma, retiro) => suma + aPesos(retiro.monto, retiro.medio), 0),
+      pasesEnviados: pasesEntreSocios.filter(pase => pase.persona === persona).reduce((suma, pase) => suma + aPesos(pase.monto, pase.medio), 0),
+      pasesRecibidos: pasesEntreSocios.filter(pase => pase.destino_persona === persona).reduce((suma, pase) => suma + aPesos(pase.monto_destino ?? pase.monto, pase.destino_medio ?? pase.medio), 0),
     }
   })
   const vendido = base.reduce((suma, persona) => suma + persona.generado, 0)
@@ -140,7 +146,7 @@ export function calcularReparto(desde: string, hasta: string, ventas: Venta[], m
     ...persona,
     ganancia: ganancia / 2,
     porRetirar: ganancia / 2 - persona.retiros,
-    rindeACaja: persona.generado - persona.egresos - ganancia / 2,
+    rindeACaja: persona.generado - persona.egresos - persona.pasesEnviados + persona.pasesRecibidos - ganancia / 2,
   }))
   const usaDolares = ventasPeriodo.some(venta => venta.metodo_pago === 'dolares') || movimientosPeriodo.some(movimiento => movimiento.medio === 'dolares')
   return {
