@@ -28,6 +28,7 @@ export async function registrarMovimiento(movimiento: NuevoMovimiento) {
   if (tipo === 'pase') {
     if (!Object.hasOwn(RECIBIO, movimiento.destinoPersona ?? '') || !Object.hasOwn(METODOS_PAGO, movimiento.destinoMedio ?? '')) return 'Elegí a qué caja va la plata.'
     if (movimiento.destinoPersona === movimiento.persona && movimiento.destinoMedio === movimiento.medio) return 'La caja de origen y la de destino son la misma.'
+    if (movimiento.destinoPersona !== movimiento.persona && movimiento.destinoMedio !== movimiento.medio) return 'Entre Lucas y Gonzalo la plata sale y llega por el mismo medio.'
     // Si no cambia de moneda llega lo mismo que sale; si pasa de pesos a dólares (o al revés), se indica lo que llega.
     const cambiaMoneda = (movimiento.medio === 'dolares') !== (movimiento.destinoMedio === 'dolares')
     const llega = cambiaMoneda ? movimiento.montoDestino : movimiento.monto
@@ -38,6 +39,27 @@ export async function registrarMovimiento(movimiento: NuevoMovimiento) {
   const supabase = await createClient()
   const { error } = await supabase.from('movimientos_caja').insert(datos)
   if (error) return 'No se pudo registrar. Probá de nuevo.'
+  revalidatePath('/')
+  return null
+}
+
+// Pase de un socio al otro: sale y llega por el mismo medio. Si fue en varios medios (ej. una parte en efectivo y otra
+// por transferencia), se guarda un pase por cada medio, todos juntos.
+export async function registrarPaseEntreSocios(pase: { fecha: string; persona: string; destinoPersona: string; montos: Partial<Record<string, number>>; descripcion: string }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(pase.fecha) || pase.fecha > hoyEnArgentina()) return 'Revisá la fecha: no puede ser posterior a hoy.'
+  if (!Object.hasOwn(RECIBIO, pase.persona) || !Object.hasOwn(RECIBIO, pase.destinoPersona)) return 'Elegí quién pasa la plata y quién la recibe.'
+  if (pase.persona === pase.destinoPersona) return 'Elegí dos personas distintas.'
+  const montos = Object.entries(pase.montos ?? {})
+  if (montos.length === 0) return 'Cargá cuánto le pasa.'
+  if (montos.some(([medio, monto]) => !Object.hasOwn(METODOS_PAGO, medio) || !montoValido(monto))) return 'Revisá los montos.'
+  const descripcion = String(pase.descripcion ?? '').trim().slice(0, 300) || null
+  const filas = montos.map(([medio, monto]) => ({
+    tipo: 'pase', fecha: pase.fecha, persona: pase.persona, medio, monto: redondear(monto as number),
+    destino_persona: pase.destinoPersona, destino_medio: medio, monto_destino: redondear(monto as number), descripcion,
+  }))
+  const supabase = await createClient()
+  const { error } = await supabase.from('movimientos_caja').insert(filas)
+  if (error) return 'No se pudo registrar el pase. Probá de nuevo.'
   revalidatePath('/')
   return null
 }

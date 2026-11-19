@@ -402,3 +402,7 @@ th { background:#fafafa; }
 @media (max-width:720px) {
   .stock-productos td.celda-principal strong,.precios-tabla td.celda-principal strong { font-size:19px; line-height:1.2; }
 }
+/* Pase entre socios: un monto por medio (efectivo, transferencia, dólares) */
+.pase-montos { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+.pase-montos .field input { width:100%; }
+@media (max-width:520px) { .pase-montos { grid-template-columns:1fr; } }
