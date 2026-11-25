@@ -459,7 +459,7 @@ function Finance({ ventas, movimientos, saldos, cierres, productos, cotizacion, 
     <RepartoGanancia periodo={periodo} titulo={titulo} ventas={ventas} movimientos={movimientos} productos={productos} cotizacion={cotizacion} />
     <div className="finance-toolbar"><div className="filter-pills" role="group" aria-label="Filtrar movimientos">{([['todos', 'Todos'], ['ventas', 'Ventas'], ['egresos', 'Egresos'], ['otros', 'Pases, retiros y ajustes']] as const).map(([clave, etiqueta]) => <button key={clave} className={filtro === clave ? 'filter-pill selected' : 'filter-pill'} onClick={() => setFiltro(clave)}>{etiqueta}</button>)}</div></div>
     <div className="card clients-table-card"><div className="clients-table-head"><div><h2>Movimientos</h2><p>{titulo} · {numero(delPeriodo.length)} {delPeriodo.length === 1 ? 'movimiento' : 'movimientos'}{delPeriodo.length > visibles.length ? ` (se muestran los ${visibles.length} más nuevos)` : ''}. Las ventas entran solas a la caja de quien cobró.</p></div></div>{visibles.length === 0 ? <div className="empty-state">No hay movimientos en este período.</div> : <div className="sales-table-wrap"><table className="clients-table sales-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th>Caja</th><th>Monto</th><th></th></tr></thead><tbody>{visibles.map(fila => <tr key={fila.clave}><td data-label="Fecha">{formatearFecha(fila.fecha)}</td><td data-label="Tipo"><span className={`status-pill movimiento-${fila.grupo}`}>{fila.tipo}</span></td><td className="celda-principal"><strong>{fila.detalle}</strong></td><td data-label="Caja">{fila.quien} · {METODOS_PAGO[fila.medio].toLowerCase()}</td><td data-label="Monto"><strong className={fila.monto === null ? '' : fila.monto < 0 ? 'monto-negativo' : 'monto-positivo'}>{fila.monto === null ? fila.texto : conSigno(fila.monto, fila.medio)}</strong></td><td data-label="">{fila.movimientoId && <button className="text-link" disabled={borrando} onClick={() => borrar(fila)}>Borrar</button>}</td></tr>)}</tbody></table></div>}</div>
-    {cierres.length > 0 && <CierresAnteriores cierres={cierres} />}
+    {cierres.length > 0 && <CierresAnteriores cierres={cierres} ventas={ventas} movimientos={movimientos} />}
   </div></section>{modal === 'cierre' && <CierreModal ultimoCierre={ultimoCierre} abierto={abierto} productos={productos} saldos={saldos} cotizacion={cotizacion} onClose={() => setModal(null)} />}{modal === 'arqueo' && <ArqueoModal saldos={saldos} onClose={() => setModal(null)} />}{(modal === 'egreso' || modal === 'pase') && <MovimientoModal inicial={modal} saldos={saldos} onClose={() => setModal(null)} />}</main>
 }
 
@@ -519,18 +519,32 @@ function CierreModal({ ultimoCierre, abierto, productos, saldos, cotizacion, onC
 }
 
 // Cierres ya hechos, tal como quedaron. El último se puede deshacer (vuelven las cajas a como estaban).
-function CierresAnteriores({ cierres }: { cierres: Cierre[] }) {
+// Cada cierre muestra su período, lo que se ganó, el reparto y los pagos y gastos: los egresos que hubo durante esa
+// caja y lo que se pagó con la plata de la Caja Glauss después de cerrar (hasta el cierre siguiente).
+function CierresAnteriores({ cierres, ventas, movimientos }: { cierres: Cierre[]; ventas: Venta[]; movimientos: MovimientoCaja[] }) {
   const [deshaciendo, startTransition] = useTransition()
   const ordenados = [...cierres].sort((a, b) => b.created_at.localeCompare(a.created_at))
   const deshacer = (cierre: Cierre) => {
     if (!window.confirm(`¿Deshacer el cierre #${cierre.numero}?\nSe borran sus retiros y lo que pasó a la Caja Glauss, y las cajas vuelven a como estaban antes de cerrar.`)) return
     startTransition(async () => { const error = await deshacerCierre(cierre.id); if (error) window.alert(error) })
   }
+  const egresos = movimientos.filter(movimiento => movimiento.tipo === 'egreso' && !movimiento.cierre_id).sort((a, b) => a.created_at.localeCompare(b.created_at))
   return <div className="card clients-table-card cierres-card"><div className="clients-table-head"><div><h2>Cierres de caja</h2><p>Quedan guardados tal cual se cerraron: no cambian aunque después cambie el dólar o el costo de los productos.</p></div></div><div className="cierres-lista">{ordenados.map((cierre, indice) => {
     const datos = cierre.datos
+    const anterior = ordenados[indice + 1] ?? null
+    const siguiente = indice > 0 ? ordenados[indice - 1] : null
+    const desdeMomento = anterior?.created_at ?? datos.desde
+    // Primer día de la caja: el día del cierre anterior, o si es el primero, la primera venta o movimiento cargado.
+    const primerDia = desdeMomento ? diaArgentina(desdeMomento) : [...ventas.filter(venta => venta.created_at <= cierre.created_at).map(venta => venta.fecha), ...movimientos.filter(movimiento => !movimiento.cierre_id && movimiento.created_at <= cierre.created_at).map(movimiento => movimiento.fecha)].sort()[0] ?? null
+    const ultimoDia = diaArgentina(cierre.created_at)
+    const delPeriodo = egresos.filter(movimiento => movimiento.created_at <= cierre.created_at && (!desdeMomento || movimiento.created_at > desdeMomento) && (movimiento.persona !== 'glauss' || !anterior))
+    const conPlataGlauss = egresos.filter(movimiento => movimiento.persona === 'glauss' && movimiento.created_at > cierre.created_at && (!siguiente || movimiento.created_at <= siguiente.created_at))
+    const enPesos = (movimiento: MovimientoCaja) => movimiento.medio === 'dolares' ? movimiento.monto * Number(cierre.cotizacion_usd ?? 0) : movimiento.monto
+    const pagadoGlauss = conPlataGlauss.reduce((suma, movimiento) => suma + enPesos(movimiento), 0)
+    const filaPago = (movimiento: MovimientoCaja) => <li key={movimiento.id}><div><b>{movimiento.categoria ? CATEGORIAS_EGRESO[movimiento.categoria] : 'Egreso'}</b><span>{formatearFecha(movimiento.fecha)} · Caja {CAJAS[movimiento.persona]} · {METODOS_PAGO[movimiento.medio]}{movimiento.descripcion ? ` · ${movimiento.descripcion}` : ''}</span></div><strong>{formatearImporte(movimiento.monto, movimiento.medio)}</strong></li>
     return <article key={cierre.id} className="cierre-item">
       <header className="cierre-item-head">
-        <div><h3>Cierre #{cierre.numero}</h3><span>{formatearFecha(diaArgentina(cierre.created_at))} a las {horaArgentina(cierre.created_at)} · lo cerró {usuarioCorto(cierre.cerrado_por_email)}{cierre.cotizacion_usd ? ` · dólar a ${money(Number(cierre.cotizacion_usd))}` : ''}</span></div>
+        <div><h3>Cierre #{cierre.numero}</h3><p className="cierre-periodo">{primerDia && primerDia !== ultimoDia ? <>Del <b>{formatearFecha(primerDia)}</b> al <b>{formatearFecha(ultimoDia)}</b></> : <>Del <b>{formatearFecha(ultimoDia)}</b></>}</p><span>Cerrado el {formatearFecha(ultimoDia)} a las {horaArgentina(cierre.created_at)} por {usuarioCorto(cierre.cerrado_por_email)}{cierre.cotizacion_usd ? ` · dólar a ${money(Number(cierre.cotizacion_usd))}` : ''}</span></div>
         {indice === 0 && <button className="cierre-deshacer" disabled={deshaciendo} onClick={() => deshacer(cierre)}>{deshaciendo ? 'Deshaciendo…' : 'Deshacer cierre'}</button>}
       </header>
       <div className="cierre-cuenta">
@@ -542,8 +556,19 @@ function CierresAnteriores({ cierres }: { cierres: Cierre[] }) {
       <table className="cierre-reparto">
         <thead><tr><th>Socio</th><th>Se llevó (su 50%)</th><th>Pasó a Caja Glauss</th></tr></thead>
         <tbody>{datos.personas.map(persona => <tr key={persona.persona}><th>{RECIBIO[persona.persona]}</th><td>{pesosRedondos(persona.seLlevaPesos)}</td><td className={persona.rindePesos < 0 ? 'monto-negativo' : undefined}>{persona.rindePesos < 0 ? `Glauss le puso ${pesosRedondos(-persona.rindePesos)}` : pesosRedondos(persona.rindePesos)}</td></tr>)}</tbody>
-        <tfoot><tr><th colSpan={2}>Caja Glauss quedó en</th><td>{pesosRedondos(datos.glaussDespuesPesos)}</td></tr></tfoot>
+        <tfoot>
+          <tr><th colSpan={2}>Caja Glauss al cerrar</th><td>{pesosRedondos(datos.glaussDespuesPesos)}</td></tr>
+          {conPlataGlauss.length > 0 && <tr className="cierre-pagado"><th colSpan={2}>Pagado con la Caja Glauss</th><td>− {pesosRedondos(pagadoGlauss)}</td></tr>}
+          {conPlataGlauss.length > 0 && <tr><th colSpan={2}>Caja Glauss después de pagar</th><td>{pesosRedondos(datos.glaussDespuesPesos - pagadoGlauss)}</td></tr>}
+        </tfoot>
       </table>
+      <div className="cierre-pagos">
+        <h4>Pagos y gastos</h4>
+        {delPeriodo.length === 0 && conPlataGlauss.length === 0 ? <p>No hubo pagos ni gastos en esta caja.</p> : <>
+          {delPeriodo.length > 0 && <><p>Durante esta caja{datos.gastos > 0 ? ' (los que no son mercadería se restaron de la ganancia)' : ''}</p><ul>{delPeriodo.map(filaPago)}</ul></>}
+          {conPlataGlauss.length > 0 && <><p>Con la plata de la Caja Glauss, después de cerrar</p><ul>{conPlataGlauss.map(filaPago)}</ul></>}
+        </>}
+      </div>
     </article>
   })}</div></div>
 }

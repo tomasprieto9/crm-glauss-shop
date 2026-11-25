@@ -473,3 +473,17 @@ th { background:#fafafa; }
 .cierre-tabla th:nth-child(3) { width:30%; }
 .cierre-tabla input { max-width:none; padding:0 8px; }
 @media (max-width:520px) { .cierre-tabla tbody th { font-size:11.5px; white-space:normal; } .cierre-tabla input { padding:0 5px; font-size:15px !important; } }
+.cierre-periodo { margin:0 0 3px; color:var(--tinta); font-size:14.5px; }
+.cierre-periodo b { font-weight:700; }
+.cierre-reparto tfoot tr + tr th,.cierre-reparto tfoot tr + tr td { border-top:1px solid #f0f0f1; font-size:13.5px; }
+.cierre-reparto tfoot .cierre-pagado td { color:var(--rojo); }
+.cierre-pagos { max-width:560px; padding:12px 14px; border-radius:12px; background:#fafafa; }
+.cierre-pagos h4 { margin:0 0 6px; color:var(--tinta); font-size:13px; font-weight:800; }
+.cierre-pagos p { margin:8px 0 4px; color:#71717a; font-size:12px; }
+.cierre-pagos h4 + p { margin-top:0; }
+.cierre-pagos ul { display:flex; flex-direction:column; gap:6px; margin:0; padding:0; list-style:none; }
+.cierre-pagos li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:10px; background:#fff; }
+.cierre-pagos li div { display:flex; min-width:0; flex-direction:column; gap:2px; }
+.cierre-pagos li b { color:var(--tinta); font-size:13px; }
+.cierre-pagos li span { color:#71717a; font-size:12px; }
+.cierre-pagos li strong { color:var(--rojo); font-size:13.5px; white-space:nowrap; }
