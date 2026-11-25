@@ -487,3 +487,28 @@ th { background:#fafafa; }
 .cierre-pagos li b { color:var(--tinta); font-size:13px; }
 .cierre-pagos li span { color:#71717a; font-size:12px; }
 .cierre-pagos li strong { color:var(--rojo); font-size:13.5px; white-space:nowrap; }
+.stock-cierre-boton { display:inline-flex; align-self:flex-start; align-items:center; gap:7px; padding:9px 14px; font-size:13px; }
+.stock-cierre-boton svg { width:16px; height:16px; }
+.stock-cierre-modal { width:min(720px, 100%); }
+.stock-cierre-modal .modal-body { display:flex; flex-direction:column; gap:14px; }
+.stock-cierre-fecha { margin:0; color:#52525b; font-size:13.5px; line-height:1.45; }
+.stock-cierre-cuenta { grid-template-columns:repeat(3, minmax(0,1fr)); }
+.stock-cierre-filtros { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+.stock-cierre-buscar { display:flex; flex:1 1 240px; align-items:center; gap:8px; min-height:42px; padding:0 12px; border:1px solid var(--linea); border-radius:12px; background:#fff; }
+.stock-cierre-buscar svg { width:16px; height:16px; color:#a1a1aa; flex:none; }
+.stock-cierre-buscar input { flex:1; min-width:0; border:0; outline:0; background:transparent; font:inherit; font-size:16px; }
+.stock-cierre-check { display:inline-flex; align-items:center; gap:7px; color:#52525b; font-size:13px; cursor:pointer; }
+.stock-cierre-check input { width:17px; height:17px; accent-color:var(--rojo); }
+.stock-cierre-lista { display:flex; flex-direction:column; gap:10px; }
+.stock-cierre-modelo { border:1px solid var(--linea); border-radius:14px; overflow:hidden; }
+.stock-cierre-modelo-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px; padding:10px 14px; background:#fafafa; }
+.stock-cierre-modelo-head h3 { margin:0; color:var(--tinta); font-size:16px; font-weight:800; }
+.stock-cierre-modelo-head span { color:#71717a; font-size:12.5px; }
+.stock-cierre-modelo-head span b { color:var(--tinta); font-size:14px; }
+.stock-cierre-modelo ul { margin:0; padding:0; list-style:none; }
+.stock-cierre-modelo li { display:grid; grid-template-columns:64px minmax(0,1fr) auto; align-items:baseline; gap:10px; padding:8px 14px; border-top:1px solid #f0f0f1; font-size:13.5px; }
+.stock-cierre-modelo li small { color:#a1a1aa; font-size:11px; letter-spacing:.02em; }
+.stock-cierre-modelo li span { color:#3f3f46; }
+.stock-cierre-modelo li b { color:var(--tinta); font-size:14.5px; }
+.stock-cierre-modelo li.sin-stock span,.stock-cierre-modelo li.sin-stock b { color:#b4b4bb; font-weight:500; }
+@media (max-width:640px) { .stock-cierre-cuenta { grid-template-columns:repeat(2, minmax(0,1fr)); } .stock-cierre-cuenta > div:last-child:nth-child(3) { grid-column:1 / -1; } .stock-cierre-modelo li { grid-template-columns:52px minmax(0,1fr) auto; padding:8px 12px; } }

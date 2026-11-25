@@ -270,3 +270,16 @@ export function armarCierre(args: { desde: string | null; ventas: Venta[]; movim
   }
   return { datos, movimientos, reparto }
 }
+
+// Stock de un sabor en el momento de un cierre de caja (cierres_caja.stock).
+export type FilaStockCierre = {
+  marca: string
+  producto: string
+  puffs: number | null
+  oculto: boolean
+  costo_usd: number | null
+  codigo: string | null
+  sabor: string
+  activo: boolean
+  stock: number
+}

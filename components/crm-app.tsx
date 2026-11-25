@@ -6,14 +6,15 @@ import { BarChart3, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Eye, E
 import { Card, CardContent } from '@/components/ui/card'
 import { cerrarSesion } from '@/app/login/actions'
 import { vistaValida, type Vista } from '@/lib/vistas'
+import { pdfStock } from '@/lib/pdf-stock'
 import { TIPOS_ACTIVIDAD, diaArgentina, horaArgentina, type Actividad } from '@/lib/actividad'
 import { actualizarCliente, crearCliente } from '@/app/clientes/actions'
 import { guardarCotizacion, guardarStockBajo } from '@/app/configuracion/actions'
-import { borrarMovimiento, cerrarCaja, deshacerCierre, registrarArqueo, registrarMovimiento, registrarPaseEntreSocios, registrarPesosADolares } from '@/app/finanzas/actions'
+import { borrarMovimiento, cerrarCaja, deshacerCierre, registrarArqueo, registrarMovimiento, registrarPaseEntreSocios, registrarPesosADolares, stockAlCierre } from '@/app/finanzas/actions'
 import { ajustarStock, crearProducto, guardarDatosProducto, guardarPreciosProducto, ocultarProducto, registrarCompra } from '@/app/productos/actions'
 import { borrarVenta, editarVenta, registrarVenta } from '@/app/ventas/actions'
 import { ESTADOS_CAMPANA, SEGMENTOS, ZONAS, formatearFecha, type Cliente } from '@/lib/clientes'
-import { CAJAS, CATEGORIAS_EGRESO, MEDIOS, SOCIOS, TIPOS_MOVIMIENTO, armarCierre, calcularPeriodo, calcularReparto, delPeriodoAbierto, propuestaSeLleva, saldoDe, type Caja, type Cierre, type MontosPorMedio, type MovimientoCaja, type RepartoPersona, type SaldoCaja } from '@/lib/finanzas'
+import { CAJAS, CATEGORIAS_EGRESO, MEDIOS, SOCIOS, TIPOS_MOVIMIENTO, armarCierre, calcularPeriodo, calcularReparto, delPeriodoAbierto, propuestaSeLleva, saldoDe, type Caja, type Cierre, type FilaStockCierre, type MontosPorMedio, type MovimientoCaja, type RepartoPersona, type SaldoCaja } from '@/lib/finanzas'
 import { ESTADOS_STOCK, estadoStock, stockTotal, unidadesCompradas, type Compra, type Configuracion, type EstadoStock, type Producto, type Sabor } from '@/lib/productos'
 import { METODOS_PAGO, RECIBIO, calcularTotales, formatearImporte, hoyEnArgentina, precioSegunPago, type MetodoPago, type Recibio, type Venta } from '@/lib/ventas'
 
@@ -528,6 +529,7 @@ function CierresAnteriores({ cierres, ventas, movimientos }: { cierres: Cierre[]
     if (!window.confirm(`¿Deshacer el cierre #${cierre.numero}?\nSe borran sus retiros y lo que pasó a la Caja Glauss, y las cajas vuelven a como estaban antes de cerrar.`)) return
     startTransition(async () => { const error = await deshacerCierre(cierre.id); if (error) window.alert(error) })
   }
+  const [verStock, setVerStock] = useState<{ cierre: Cierre; periodo: string } | null>(null)
   const egresos = movimientos.filter(movimiento => movimiento.tipo === 'egreso' && !movimiento.cierre_id).sort((a, b) => a.created_at.localeCompare(b.created_at))
   return <div className="card clients-table-card cierres-card"><div className="clients-table-head"><div><h2>Cierres de caja</h2><p>Quedan guardados tal cual se cerraron: no cambian aunque después cambie el dólar o el costo de los productos.</p></div></div><div className="cierres-lista">{ordenados.map((cierre, indice) => {
     const datos = cierre.datos
@@ -541,6 +543,7 @@ function CierresAnteriores({ cierres, ventas, movimientos }: { cierres: Cierre[]
     const conPlataGlauss = egresos.filter(movimiento => movimiento.persona === 'glauss' && movimiento.created_at > cierre.created_at && (!siguiente || movimiento.created_at <= siguiente.created_at))
     const enPesos = (movimiento: MovimientoCaja) => movimiento.medio === 'dolares' ? movimiento.monto * Number(cierre.cotizacion_usd ?? 0) : movimiento.monto
     const pagadoGlauss = conPlataGlauss.reduce((suma, movimiento) => suma + enPesos(movimiento), 0)
+    const periodo = primerDia && primerDia !== ultimoDia ? `Del ${formatearFecha(primerDia)} al ${formatearFecha(ultimoDia)}` : `Del ${formatearFecha(ultimoDia)}`
     const filaPago = (movimiento: MovimientoCaja) => <li key={movimiento.id}><div><b>{movimiento.categoria ? CATEGORIAS_EGRESO[movimiento.categoria] : 'Egreso'}</b><span>{formatearFecha(movimiento.fecha)} · Caja {CAJAS[movimiento.persona]} · {METODOS_PAGO[movimiento.medio]}{movimiento.descripcion ? ` · ${movimiento.descripcion}` : ''}</span></div><strong>{formatearImporte(movimiento.monto, movimiento.medio)}</strong></li>
     return <article key={cierre.id} className="cierre-item">
       <header className="cierre-item-head">
@@ -569,8 +572,76 @@ function CierresAnteriores({ cierres, ventas, movimientos }: { cierres: Cierre[]
           {conPlataGlauss.length > 0 && <><p>Con la plata de la Caja Glauss, después de cerrar</p><ul>{conPlataGlauss.map(filaPago)}</ul></>}
         </>}
       </div>
+      <button className="outline-button stock-cierre-boton" onClick={() => setVerStock({ cierre, periodo })}><Package /> Ver stock al cierre</button>
     </article>
-  })}</div></div>
+  })}</div>{verStock && <StockCierreModal cierre={verStock.cierre} periodo={verStock.periodo} onClose={() => setVerStock(null)} />}</div>
+}
+
+// Stock de cada sabor tal como quedó al cerrar la caja: buscador, sabores sin stock opcionales y PDF para descargar.
+function StockCierreModal({ cierre, periodo, onClose }: { cierre: Cierre; periodo: string; onClose: () => void }) {
+  const [filas, setFilas] = useState<FilaStockCierre[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [conSinStock, setConSinStock] = useState(false)
+  useBloquearScroll()
+  useEffect(() => {
+    let vigente = true
+    stockAlCierre(cierre.id).then(resultado => { if (!vigente) return; if ('error' in resultado) setError(resultado.error); else setFilas(resultado.stock) }).catch(() => { if (vigente) setError('No se pudo cargar el stock. Probá de nuevo.') })
+    return () => { vigente = false }
+  }, [cierre.id])
+  const cotizacion = Number(cierre.cotizacion_usd ?? 0)
+  const unidades = (filas ?? []).reduce((suma, fila) => suma + fila.stock, 0)
+  const valorUsd = (filas ?? []).reduce((suma, fila) => suma + fila.stock * Number(fila.costo_usd ?? 0), 0)
+  const usd = (valor: number) => `US$ ${valor.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const normalizar = (texto: string) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const grupos = useMemo(() => {
+    const porModelo = new Map<string, { titulo: string; filas: FilaStockCierre[] }>()
+    for (const fila of filas ?? []) {
+      if (fila.stock === 0 && (!conSinStock || !fila.activo || fila.oculto)) continue
+      const titulo = `${fila.marca} ${fila.producto}`
+      const grupo = porModelo.get(titulo) ?? { titulo, filas: [] }
+      grupo.filas.push(fila)
+      porModelo.set(titulo, grupo)
+    }
+    return [...porModelo.values()].map(grupo => ({ ...grupo, unidades: grupo.filas.reduce((suma, fila) => suma + fila.stock, 0), valorUsd: grupo.filas.reduce((suma, fila) => suma + fila.stock * Number(fila.costo_usd ?? 0), 0) }))
+  }, [filas, conSinStock])
+  const buscado = normalizar(busqueda.trim())
+  const visibles = buscado ? grupos.map(grupo => normalizar(grupo.titulo).includes(buscado) ? grupo : { ...grupo, filas: grupo.filas.filter(fila => normalizar(`${fila.sabor} ${fila.codigo ?? ''}`).includes(buscado)) }).filter(grupo => grupo.filas.length > 0) : grupos
+  const titulo = `Stock al cierre #${cierre.numero}`
+  const fechaCierre = `${formatearFecha(diaArgentina(cierre.created_at))} a las ${horaArgentina(cierre.created_at)}`
+  const descargar = () => {
+    const archivo = pdfStock({
+      titulo: `Glauss Shop · ${titulo}`,
+      subtitulo: `${periodo} · cerrado el ${fechaCierre}${cotizacion ? ` · dólar a ${money(cotizacion)}` : ''}`,
+      resumen: `${numero(unidades)} unidades · valor a costo ${usd(valorUsd)}${cotizacion ? ` (${pesosRedondos(valorUsd * cotizacion)})` : ''}`,
+      grupos: grupos.map(grupo => ({ titulo: grupo.titulo, detalle: `${numero(grupo.unidades)} u. · ${usd(grupo.valorUsd)}`, filas: grupo.filas.map(fila => ({ codigo: fila.codigo ?? '', sabor: fila.sabor, stock: fila.stock })) })),
+    })
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(archivo)
+    enlace.download = `Stock al cierre #${cierre.numero} - ${diaArgentina(cierre.created_at).split('-').reverse().join('-')}.pdf`
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 10_000)
+  }
+  return <div className="modal-backdrop"><section className="sale-modal new-sale-modal stock-cierre-modal" role="dialog" aria-modal="true" aria-labelledby="stock-cierre-title"><header><div><p className="eyebrow">CIERRE #{cierre.numero}</p><h2 id="stock-cierre-title">Stock al cierre</h2></div><button className="close-button" onClick={onClose} aria-label="Cerrar"><X /></button></header><div className="modal-body">
+    <p className="stock-cierre-fecha">Así estaba el stock el <b>{fechaCierre}</b>, cuando se cerró la caja. {periodo}.</p>
+    {error ? <p className="login-error" role="alert">{error}</p> : filas === null ? <p className="venta-lista">Cargando el stock…</p> : <>
+      <div className="cierre-cuenta stock-cierre-cuenta">
+        <div><span>Unidades</span><strong>{numero(unidades)}</strong></div>
+        <div><span>Valor a costo</span><strong>{usd(valorUsd)}</strong></div>
+        {cotizacion > 0 && <div><span>En pesos (dólar {money(cotizacion)})</span><strong>{pesosRedondos(valorUsd * cotizacion)}</strong></div>}
+      </div>
+      <div className="stock-cierre-filtros">
+        <label className="stock-cierre-buscar"><Search /><input type="search" value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar modelo, sabor o código" aria-label="Buscar en el stock" /></label>
+        <label className="stock-cierre-check"><input type="checkbox" checked={conSinStock} onChange={event => setConSinStock(event.target.checked)} /> Mostrar sabores sin stock</label>
+      </div>
+      {visibles.length === 0 ? <p className="venta-lista">{buscado ? 'No hay nada que coincida con la búsqueda.' : 'No había stock al cerrar.'}</p> : <div className="stock-cierre-lista">{visibles.map(grupo => <div key={grupo.titulo} className="stock-cierre-modelo">
+        <div className="stock-cierre-modelo-head"><h3>{grupo.titulo}</h3><span><b>{numero(grupo.unidades)}</b> u. · {usd(grupo.valorUsd)}</span></div>
+        <ul>{grupo.filas.map(fila => <li key={`${fila.codigo}-${fila.sabor}`} className={fila.stock === 0 ? 'sin-stock' : undefined}><small>{fila.codigo ?? ''}</small><span>{fila.sabor}</span><b>{numero(fila.stock)}</b></li>)}</ul>
+      </div>)}</div>}
+    </>}
+  </div><footer><button className="cancel-button" onClick={onClose}>Cerrar</button><button className="quick-button" disabled={!filas || grupos.length === 0} onClick={descargar}>Descargar PDF</button></footer></section></div>
 }
 
 function MovimientoModal({ inicial, saldos, onClose }: { inicial: 'egreso' | 'pase'; saldos: SaldoCaja[]; onClose: () => void }) {

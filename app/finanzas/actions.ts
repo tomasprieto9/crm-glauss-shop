@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { CAJAS, CATEGORIAS_EGRESO, MEDIOS, SOCIOS, TIPOS_MOVIMIENTO, armarCierre, sinMontos, type MontosPorMedio, type MovimientoCaja, type NuevoMovimiento, type SaldoCaja } from '@/lib/finanzas'
+import { CAJAS, CATEGORIAS_EGRESO, MEDIOS, SOCIOS, TIPOS_MOVIMIENTO, armarCierre, sinMontos, type FilaStockCierre, type MontosPorMedio, type MovimientoCaja, type NuevoMovimiento, type SaldoCaja } from '@/lib/finanzas'
 import type { Producto } from '@/lib/productos'
 import { createClient } from '@/lib/supabase/server'
 import { METODOS_PAGO, RECIBIO, hoyEnArgentina, type Recibio, type Venta } from '@/lib/ventas'
@@ -167,4 +167,15 @@ export async function deshacerCierre(cierreId: string) {
   if (error) return 'No se pudo deshacer el cierre. Probá de nuevo.'
   revalidatePath('/')
   return null
+}
+
+// La foto del stock que quedó guardada en un cierre (se pide al abrir "Ver stock al cierre").
+export async function stockAlCierre(cierreId: string): Promise<{ stock: FilaStockCierre[] } | { error: string }> {
+  if (typeof cierreId !== 'string' || !cierreId) return { error: 'No se encontró el cierre.' }
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('cierres_caja').select('stock').eq('id', cierreId).maybeSingle()
+  if (error) return { error: 'No se pudo cargar el stock. Probá de nuevo.' }
+  if (!data) return { error: 'No se encontró el cierre.' }
+  if (!data.stock) return { error: 'Este cierre no tiene guardado el stock.' }
+  return { stock: data.stock as FilaStockCierre[] }
 }
