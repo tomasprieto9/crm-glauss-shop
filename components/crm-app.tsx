@@ -526,7 +526,26 @@ function CierresAnteriores({ cierres }: { cierres: Cierre[] }) {
     if (!window.confirm(`¿Deshacer el cierre #${cierre.numero}?\nSe borran sus retiros y lo que pasó a la Caja Glauss, y las cajas vuelven a como estaban antes de cerrar.`)) return
     startTransition(async () => { const error = await deshacerCierre(cierre.id); if (error) window.alert(error) })
   }
-  return <div className="card clients-table-card cierres-card"><div className="clients-table-head"><div><h2>Cierres de caja</h2><p>Quedan guardados tal cual se cerraron: no cambian aunque después cambie el dólar o el costo de los productos.</p></div></div><div className="cierres-lista">{ordenados.map((cierre, indice) => <div key={cierre.id} className="cierre-item"><div className="cierre-item-head"><strong>Cierre #{cierre.numero}</strong><span>{formatearFecha(diaArgentina(cierre.created_at))} {horaArgentina(cierre.created_at)} · {usuarioCorto(cierre.cerrado_por_email)}{cierre.cotizacion_usd ? ` · dólar ${money(Number(cierre.cotizacion_usd))}` : ''}</span>{indice === 0 && <button className="text-link" disabled={deshaciendo} onClick={() => deshacer(cierre)}>{deshaciendo ? 'Deshaciendo…' : 'Deshacer'}</button>}</div><p>{numero(cierre.datos.ventas)} {cierre.datos.ventas === 1 ? 'venta' : 'ventas'} · vendido {pesosRedondos(cierre.datos.vendido)} · ganancia <b>{pesosRedondos(cierre.datos.ganancia)}</b></p><ul>{cierre.datos.personas.map(persona => <li key={persona.persona}><b>{RECIBIO[persona.persona]}</b> se llevó {pesosRedondos(persona.seLlevaPesos)} y rindió {pesosRedondos(persona.rindePesos)}</li>)}<li>Caja Glauss quedó en <b>{pesosRedondos(cierre.datos.glaussDespuesPesos)}</b></li></ul></div>)}</div></div>
+  return <div className="card clients-table-card cierres-card"><div className="clients-table-head"><div><h2>Cierres de caja</h2><p>Quedan guardados tal cual se cerraron: no cambian aunque después cambie el dólar o el costo de los productos.</p></div></div><div className="cierres-lista">{ordenados.map((cierre, indice) => {
+    const datos = cierre.datos
+    return <article key={cierre.id} className="cierre-item">
+      <header className="cierre-item-head">
+        <div><h3>Cierre #{cierre.numero}</h3><span>{formatearFecha(diaArgentina(cierre.created_at))} a las {horaArgentina(cierre.created_at)} · lo cerró {usuarioCorto(cierre.cerrado_por_email)}{cierre.cotizacion_usd ? ` · dólar a ${money(Number(cierre.cotizacion_usd))}` : ''}</span></div>
+        {indice === 0 && <button className="cierre-deshacer" disabled={deshaciendo} onClick={() => deshacer(cierre)}>{deshaciendo ? 'Deshaciendo…' : 'Deshacer cierre'}</button>}
+      </header>
+      <div className="cierre-cuenta">
+        <div><span>Ventas</span><strong>{numero(datos.ventas)}</strong></div>
+        <div><span>Vendido</span><strong>{pesosRedondos(datos.vendido)}</strong></div>
+        <div><span>{datos.gastos > 0 ? 'Costo y gastos' : 'Costo de mercadería'}</span><strong>{pesosRedondos(datos.costo + datos.gastos)}</strong></div>
+        <div className="cierre-ganancia"><span>Ganancia</span><strong>{pesosRedondos(datos.ganancia)}</strong></div>
+      </div>
+      <table className="cierre-reparto">
+        <thead><tr><th>Socio</th><th>Se llevó (su 50%)</th><th>Pasó a Caja Glauss</th></tr></thead>
+        <tbody>{datos.personas.map(persona => <tr key={persona.persona}><th>{RECIBIO[persona.persona]}</th><td>{pesosRedondos(persona.seLlevaPesos)}</td><td className={persona.rindePesos < 0 ? 'monto-negativo' : undefined}>{persona.rindePesos < 0 ? `Glauss le puso ${pesosRedondos(-persona.rindePesos)}` : pesosRedondos(persona.rindePesos)}</td></tr>)}</tbody>
+        <tfoot><tr><th colSpan={2}>Caja Glauss quedó en</th><td>{pesosRedondos(datos.glaussDespuesPesos)}</td></tr></tfoot>
+      </table>
+    </article>
+  })}</div></div>
 }
 
 function MovimientoModal({ inicial, saldos, onClose }: { inicial: 'egreso' | 'pase'; saldos: SaldoCaja[]; onClose: () => void }) {
